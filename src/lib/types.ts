@@ -1,26 +1,43 @@
-export type ProductPhoto = { url: string; thumb: string };
+export type ProductPhoto = { url: string; thumb: string; publicId?: string };
+
+export type RelatedProduct = {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  thumb: string;
+  category: string;
+  categorySlug: string;
+};
 
 export type Product = {
-  id: number;
+  id: string;
+  slug: string;
   name: string;
   description: string | null;
   price: number;
+  stock: number;
   photos: ProductPhoto[];
   thumb: string;
   image: string;
-  categoryId: number | null;
+  categoryId: string | null;
+  categorySlug: string;
   category: string;
+  hidden?: boolean;
+  related?: RelatedProduct[];
 };
 
 export type Category = {
-  id: number;
+  id: string;
+  slug: string;
   name: string;
   count: number;
   image: string;
+  images: string[];
 };
 
 export type Review = {
-  id: number;
+  id: string;
   rating: number;
   text: string;
   name: string;

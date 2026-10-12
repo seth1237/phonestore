@@ -12,12 +12,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: path === "" ? 1 : 0.7,
   }));
   const categoryRoutes = categories.map((category) => ({
-    url: `${base}/category/${category.id}`,
+    url: `${base}/category/${category.slug}`,
     changeFrequency: "weekly" as const,
     priority: 0.6,
   }));
   const productRoutes = products.map((product) => ({
-    url: `${base}/products/${product.id}`,
+    url: `${base}/products/${product.slug}`,
     changeFrequency: "weekly" as const,
     priority: 0.5,
   }));

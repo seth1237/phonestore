@@ -11,7 +11,7 @@ import {
 import type { Product } from "@/lib/types";
 
 export type CartLine = {
-  id: number;
+  id: string;
   qty: number;
 };
 
@@ -19,9 +19,9 @@ type CartContextValue = {
   lines: CartLine[];
   count: number;
   ready: boolean;
-  add: (id: number, qty?: number) => void;
-  setQty: (id: number, qty: number) => void;
-  remove: (id: number) => void;
+  add: (id: string, qty?: number) => void;
+  setQty: (id: string, qty: number) => void;
+  remove: (id: string) => void;
   clear: () => void;
   detailed: { product: Product; qty: number }[];
   total: number;
@@ -38,7 +38,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setLines(JSON.parse(raw) as CartLine[]);
+      if (raw) {
+        const saved = JSON.parse(raw) as CartLine[];
+        setLines(saved.map((line) => ({ id: String(line.id), qty: Number(line.qty) || 1 })));
+      }
     } catch {
       setLines([]);
     }
@@ -54,7 +57,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
   }, [lines, ready]);
 
-  const add = useCallback((id: number, qty = 1) => {
+  const add = useCallback((id: string, qty = 1) => {
     const amount = Math.max(1, qty);
     setLines((current) => {
       const existing = current.find((line) => line.id === id);
@@ -65,14 +68,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setQty = useCallback((id: number, qty: number) => {
+  const setQty = useCallback((id: string, qty: number) => {
     setLines((current) => {
       if (qty <= 0) return current.filter((line) => line.id !== id);
       return current.map((line) => (line.id === id ? { ...line, qty } : line));
     });
   }, []);
 
-  const remove = useCallback((id: number) => {
+  const remove = useCallback((id: string) => {
     setLines((current) => current.filter((line) => line.id !== id));
   }, []);
 

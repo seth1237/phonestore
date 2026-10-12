@@ -17,22 +17,22 @@ export const getProducts = cache(() => getJson<Product[]>("/api/products"));
 export const getOffers = cache(() => getJson<Offer[]>("/api/offers"));
 export const getPosts = cache(() => getJson<BlogPost[]>("/api/posts"));
 
-export function getProduct(id: number) {
-  return getJson<Product>(`/api/products/${id}`).catch((error: Error) => {
+export function getProduct(id: string) {
+  return getJson<Product>(`/api/products/${encodeURIComponent(id)}`).catch((error: Error) => {
     if (error.message.endsWith("404")) return null;
     throw error;
   });
 }
 
-export function getCategory(id: number) {
-  return getJson<Category>(`/api/categories/${id}`).catch((error: Error) => {
+export function getCategory(id: string) {
+  return getJson<Category>(`/api/categories/${encodeURIComponent(id)}`).catch((error: Error) => {
     if (error.message.endsWith("404")) return null;
     throw error;
   });
 }
 
-export function getProductsByCategory(id: number) {
-  return getJson<Product[]>(`/api/categories/${id}/products`);
+export function getProductsByCategory(id: string) {
+  return getJson<Product[]>(`/api/categories/${encodeURIComponent(id)}/products`);
 }
 
 export function getPost(slug: string) {
@@ -48,7 +48,15 @@ export function getReviews() {
 
 export function shopCategories(categories: Category[]) {
   return categories
-    .filter((category) => category.count > 0 && category.image)
+    .filter((category) => category.count > 0)
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
+export function topCategories(categories: Category[], limit = 3) {
+  return categories
+    .filter((category) => category.count > 0)
+    .slice()
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    .slice(0, limit);
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CategoryCard } from "@/components/category-card";
 import { ProductCard } from "@/components/product-card";
 import { AccentLink } from "@/components/accent-button";
-import { getCategories, getProducts, getSite, shopCategories } from "@/lib/api";
+import { getCategories, getProducts, getSite, topCategories } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ const HOME_PREVIEW_LIMIT = 6;
 
 export default async function HomePage() {
   const [site, categories, products] = await Promise.all([getSite(), getCategories(), getProducts()]);
-  const shelves = shopCategories(categories);
+  const shelves = topCategories(categories, 3);
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-start space-y-[2rem] px-4 py-8">
@@ -62,7 +62,7 @@ export default async function HomePage() {
               ))}
             </div>
             <Link
-              href={`/category/${category.id}`}
+              href={`/category/${category.slug}`}
               className="mt-7 flex h-12 w-full items-center justify-center rounded-lg border-0 bg-[#EA580C] text-sm font-bold text-white shadow-none transition-colors duration-200 hover:bg-[#C2410C]"
             >
               See All

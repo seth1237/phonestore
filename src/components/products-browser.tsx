@@ -19,7 +19,7 @@ export function ProductsBrowser({
   const params = use(searchParams);
   const initialQuery = params.q ?? "";
   const [query, setQuery] = useState(initialQuery);
-  const [categoryId, setCategoryId] = useState<number | "all">("all");
+  const [categoryId, setCategoryId] = useState<string | "all">("all");
   const [visible, setVisible] = useState(PRODUCTS_PAGE_SIZE);
   const browseCategories = categories
     .filter((category) => category.count > 0)

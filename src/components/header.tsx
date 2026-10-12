@@ -116,7 +116,7 @@ function SearchField({
           {categories.map((category) => (
             <Link
               key={`cat-${category.id}`}
-              href={`/category/${category.id}`}
+              href={`/category/${category.slug}`}
               onClick={() => setOpen(false)}
               className="flex cursor-pointer flex-row items-center justify-between space-x-2 bg-[#f8fafc] px-4 py-2 transition-colors hover:bg-gray-100"
             >
@@ -127,7 +127,7 @@ function SearchField({
           {products.map((product) => (
             <Link
               key={product.id}
-              href={`/products/${product.id}`}
+              href={`/products/${product.slug}`}
               onClick={() => setOpen(false)}
               className="flex cursor-pointer flex-row items-start justify-between space-x-2 px-4 py-2 transition-colors hover:bg-gray-100"
             >
@@ -254,7 +254,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
                 {categories.map((category) => (
                   <Link
                     key={category.id}
-                    href={`/category/${category.id}`}
+                    href={`/category/${category.slug}`}
                     className="shrink-0 px-[1rem] text-[0.875rem] font-bold whitespace-nowrap text-white hover:text-secondary"
                   >
                     {category.name}
@@ -313,7 +313,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
               {categories.map((category) => (
                 <Link
                   key={category.id}
-                  href={`/category/${category.id}`}
+                  href={`/category/${category.slug}`}
                   className="border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink"
                 >
                   {category.name}

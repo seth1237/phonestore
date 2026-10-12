@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import type { Product } from "@/lib/types";
-import { isInStock } from "@/lib/format";
 import { Price } from "./price";
 
 export function ProductCard({
@@ -16,12 +15,12 @@ export function ProductCard({
   variant?: "shelf" | "catalog";
 }) {
   const { add } = useCart();
-  const inStock = isInStock(product.price);
+  const inStock = product.stock > 0;
   const src = product.thumb || product.image;
 
   return (
     <Link
-      href={`/products/${product.id}`}
+      href={`/products/${product.slug}`}
       className={`border-line relative flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-md border bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md ${
         variant === "catalog"
           ? "w-full"

@@ -113,6 +113,18 @@ async function ensureSchema(pool) {
   for (const statement of statements) {
     await pool.query(statement);
   }
+  const alterations = [
+    "ALTER TABLE orders ADD COLUMN quotation_id VARCHAR(64) NULL",
+    "ALTER TABLE orders ADD COLUMN quotation_number VARCHAR(40) NULL",
+    "ALTER TABLE order_items MODIFY product_id VARCHAR(64) NOT NULL",
+  ];
+  for (const statement of alterations) {
+    try {
+      await pool.query(statement);
+    } catch (error) {
+      if (error.code !== "ER_DUP_FIELDNAME") throw error;
+    }
+  }
 }
 
 module.exports = { ensureSchema };

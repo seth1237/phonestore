@@ -5,7 +5,6 @@ import { Minus, Plus, Share2 } from "lucide-react";
 import { useState } from "react";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
-import { isInStock } from "@/lib/format";
 import { Price } from "./price";
 import { AccentButton } from "./accent-button";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -21,7 +20,7 @@ export function ProductPurchase({ product }: { product: Product }) {
   const [note, setNote] = useState("");
   const { add } = useCart();
   const current = photos[active];
-  const inStock = isInStock(product.price);
+  const inStock = product.stock > 0;
 
   async function share() {
     const url = window.location.href;
@@ -80,7 +79,7 @@ export function ProductPurchase({ product }: { product: Product }) {
             items={[
               { href: "/", label: "All Categories" },
               product.categoryId
-                ? { href: `/category/${product.categoryId}`, label: product.category || "Category" }
+                ? { href: `/category/${product.categorySlug || product.categoryId}`, label: product.category || "Category" }
                 : { label: "Products" },
             ]}
           />

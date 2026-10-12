@@ -12,18 +12,18 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const [category, site] = await Promise.all([getCategory(Number(id)), getSite()]);
+  const [category, site] = await Promise.all([getCategory(id), getSite()]);
   if (!category) return { title: "Category" };
   return {
     title: category.name,
     description: `Shop ${category.name} at ${site.name} in Nairobi.`,
-    alternates: { canonical: `/category/${category.id}` },
+    alternates: { canonical: `/category/${category.slug}` },
   };
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const category = await getCategory(Number(id));
+  const category = await getCategory(id);
   if (!category) notFound();
   const products = await getProductsByCategory(category.id);
 
