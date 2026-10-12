@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #00275a;
+  --secondary: #f36f26;
+  --secondary-soft: #fff4ec;
+  --page: #f9fafb;
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --footer: #00275a;
+  --footer-text: #d1d5db;
+  --background: #ffffff;
+  --foreground: #111827;
+}
+
+@theme inline {
+  --color-accent: var(--accent);
+  --color-secondary: var(--secondary);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-footer: var(--footer);
+  --color-footer-text: var(--footer-text);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-work: var(--font-work-sans), ui-sans-serif, sans-serif;
+  --font-rubik: var(--font-rubik), ui-sans-serif, sans-serif;
+  --font-inter: var(--font-inter), ui-sans-serif, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-work-sans), ui-sans-serif, sans-serif;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.mask-fade-right {
+  mask-image: linear-gradient(90deg, black 80%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, black 80%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
