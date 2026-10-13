@@ -25,21 +25,59 @@ async function savedProducts() {
   }
 }
 
+function colorHex(value) {
+  const raw = String(value || "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toLowerCase();
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    const [r, g, b] = raw.slice(1).split("");
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+  return "";
+}
+
+function normalizeSpecs(raw) {
+  if (!Array.isArray(raw)) return [];
+  const specs = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const label = String(item?.label || "").replace(/\s+/g, " ").trim();
+    const value = String(item?.value || "").trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    specs.push({ label, value });
+  }
+  return specs.slice(0, 40);
+}
+
+function storageValue(explicit, specs) {
+  const typed = String(explicit || "").trim();
+  if (typed) return typed;
+  const match = specs.find((item) => item.label.toLowerCase() === "storage");
+  return match?.value || "";
+}
+
 function mapVariants(raw) {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((item) => ({
-      id: String(item?.id || ""),
-      color: String(item?.color || "").trim(),
-      storage: String(item?.storage || "").trim(),
-      sku: String(item?.sku || "").trim(),
-      price: Number(item?.price) || 0,
-      stock: Math.max(0, Number(item?.stock) || 0),
-      images: (Array.isArray(item?.images) ? item.images : [])
-        .filter((image) => image?.url)
-        .map((image) => ({ url: image.url, thumb: image.url, publicId: image.publicId || "" })),
-    }))
-    .filter((item) => item.id && (item.color || item.storage || item.sku || item.images.length));
+    .map((item) => {
+      const specs = normalizeSpecs(item?.specs);
+      return {
+        id: String(item?.id || ""),
+        color: String(item?.color || "").trim(),
+        hex: colorHex(item?.hex),
+        storage: storageValue(item?.storage, specs),
+        sku: String(item?.sku || "").trim(),
+        price: Number(item?.price) || 0,
+        stock: Math.max(0, Number(item?.stock) || 0),
+        specs,
+        images: (Array.isArray(item?.images) ? item.images : [])
+          .filter((image) => image?.url)
+          .map((image) => ({ url: image.url, thumb: image.url, publicId: image.publicId || "" })),
+      };
+    })
+    .filter((item) => item.id && (item.color || item.hex || item.storage || item.sku || item.images.length || item.specs.length));
 }
 
 function normalizeVariants(raw) {
@@ -92,6 +130,7 @@ async function buildCatalog({ includeHidden = false } = {}) {
         stock: variants.length ? variants.reduce((sum, item) => sum + item.stock, 0) : product.stock,
         hidden: Boolean(extra?.hidden),
         relatedIds: Array.isArray(extra?.relatedIds) ? extra.relatedIds.map(String) : [],
+        specs: normalizeSpecs(extra?.specs),
         variants,
         photos,
         image: primary?.url || "",
@@ -186,14 +225,70 @@ async function saveProductMeta(erpId, patch) {
   if ("description" in patch) update.description = patch.description == null ? null : String(patch.description);
   if ("hidden" in patch) update.hidden = Boolean(patch.hidden);
   if ("relatedIds" in patch) update.relatedIds = (patch.relatedIds || []).map(String).filter((id) => id && id !== erpId);
+  if ("specs" in patch) update.specs = normalizeSpecs(patch.specs);
   if ("variants" in patch) update.variants = normalizeVariants(patch.variants);
+  const labels = [
+    ...(update.specs || []).map((item) => item.label),
+    ...(update.variants || []).flatMap((item) => (item.specs || []).map((spec) => spec.label)),
+  ];
+  if (labels.length) await rememberSpecFields(labels);
   await products.updateOne({ erpId: String(erpId) }, { $set: update, $setOnInsert: { erpId: String(erpId) } }, { upsert: true });
   clearCatalogCache();
-  if ("variants" in patch) {
-    const saved = await products.findOne({ erpId: String(erpId) });
-    return mapVariants(saved?.variants);
+  const saved = await products.findOne({ erpId: String(erpId) });
+  return {
+    variants: "variants" in patch ? mapVariants(saved?.variants) : null,
+    specs: normalizeSpecs(saved?.specs),
+    fields: await listSpecFields(),
+  };
+}
+
+const STARTER_SPECS = [
+  "Screen size",
+  "Display",
+  "Resolution",
+  "RAM",
+  "Storage",
+  "Processor",
+  "Operating System",
+  "Battery",
+  "Camera",
+  "Network",
+  "Dimension",
+];
+
+async function specFieldCollection() {
+  const fields = await collection("specFields");
+  await fields.createIndex({ key: 1 }, { unique: true });
+  return fields;
+}
+
+async function rememberSpecFields(labels) {
+  const names = [...new Set(labels.map((label) => String(label || "").replace(/\s+/g, " ").trim()).filter(Boolean))];
+  if (!names.length) return;
+  const fields = await specFieldCollection();
+  const now = new Date();
+  await fields.bulkWrite(
+    names.map((name) => ({
+      updateOne: {
+        filter: { key: name.toLowerCase() },
+        update: { $setOnInsert: { name, key: name.toLowerCase(), createdAt: now } },
+        upsert: true,
+      },
+    })),
+  );
+}
+
+async function listSpecFields() {
+  try {
+    const fields = await specFieldCollection();
+    const count = await fields.countDocuments();
+    if (!count) await rememberSpecFields(STARTER_SPECS);
+    const rows = await fields.find({}).sort({ name: 1 }).toArray();
+    return rows.map((row) => row.name).filter(Boolean);
+  } catch (error) {
+    console.error("Spec fields are unavailable:", error.message);
+    return STARTER_SPECS;
   }
-  return null;
 }
 
 async function addProductImages(erpId, images) {
@@ -241,6 +336,7 @@ module.exports = {
   loadCategories,
   loadAdminCatalog,
   saveProductMeta,
+  listSpecFields,
   addProductImages,
   addVariantImages,
   removeProductImage,

@@ -1,13 +1,17 @@
 export type ProductPhoto = { url: string; thumb: string; publicId?: string };
 
+export type ProductSpec = { label: string; value: string };
+
 export type ProductVariant = {
   id: string;
   color: string;
+  hex: string;
   storage: string;
   sku: string;
   price: number;
   stock: number;
   images: ProductPhoto[];
+  specs: ProductSpec[];
 };
 
 export type RelatedProduct = {
@@ -36,6 +40,7 @@ export type Product = {
   hidden?: boolean;
   related?: RelatedProduct[];
   variants?: ProductVariant[];
+  specs?: ProductSpec[];
 };
 
 export type Category = {

@@ -30,6 +30,11 @@ export function parseCartLineId(id: string) {
   return { productId: id.slice(0, split), variantId: id.slice(split + 2) };
 }
 
+export function variantSwatch(variant: Pick<ProductVariant, "color" | "hex">) {
+  if (variant.hex) return variant.hex;
+  return swatchColor(variant.color);
+}
+
 export function variantLabel(variant: Pick<ProductVariant, "color" | "storage">) {
   return [variant.color, variant.storage].filter(Boolean).join(", ");
 }

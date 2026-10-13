@@ -1,9 +1,107 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Category, Product, ProductVariant } from "@/lib/types";
+import type { Category, Product, ProductSpec, ProductVariant } from "@/lib/types";
 import { apiFetch } from "@/lib/client-api";
+
+function PhotoDrop({
+  busy,
+  title,
+  hint,
+  onFiles,
+}: {
+  busy: boolean;
+  title: string;
+  hint: string;
+  onFiles: (files: FileList | null) => void;
+}) {
+  const [over, setOver] = useState(false);
+  return (
+    <label
+      className={over ? "admin-dropzone is-over" : "admin-dropzone"}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOver(true);
+      }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOver(true);
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        setOver(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOver(false);
+        onFiles(event.dataTransfer.files);
+      }}
+    >
+      <strong>{busy ? "Saving…" : over ? "Drop to upload" : title}</strong>
+      <span>{hint}</span>
+      <input
+        className="admin-dropzone-input"
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={(event) => {
+          onFiles(event.target.files);
+          event.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
+
+function SpecSections({
+  specs,
+  onChange,
+}: {
+  specs: ProductSpec[];
+  onChange: (next: ProductSpec[]) => void;
+}) {
+  return (
+    <div className="spec-list">
+      {specs.map((spec, index) => (
+        <div className="spec-row" key={index}>
+          <input
+            list="known-spec-fields"
+            aria-label={`Section ${index + 1}`}
+            placeholder="RAM"
+            value={spec.label}
+            onChange={(event) => {
+              const next = specs.slice();
+              next[index] = { ...spec, label: event.target.value };
+              onChange(next);
+            }}
+          />
+          <input
+            aria-label={`Value for ${spec.label || `section ${index + 1}`}`}
+            placeholder="8 GB"
+            value={spec.value}
+            onChange={(event) => {
+              const next = specs.slice();
+              next[index] = { ...spec, value: event.target.value };
+              onChange(next);
+            }}
+          />
+          <button type="button" className="button button-quiet" onClick={() => onChange(specs.filter((_, item) => item !== index))}>
+            Remove
+          </button>
+        </div>
+      ))}
+      <button type="button" className="button button-quiet" onClick={() => onChange([...specs, { label: "", value: "" }])}>
+        Add section
+      </button>
+    </div>
+  );
+}
 
 export function AdminProductsPanel({
   products,
@@ -22,6 +120,21 @@ export function AdminProductsPanel({
   const [details, setDetails] = useState<Record<string, string>>({});
   const [related, setRelated] = useState<Record<string, string[]>>({});
   const [drafts, setDrafts] = useState<Record<string, ProductVariant[]>>({});
+  const [specDrafts, setSpecDrafts] = useState<Record<string, ProductSpec[]>>({});
+  const [knownSpecs, setKnownSpecs] = useState<string[]>([]);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    apiFetch("/api/admin/spec-fields").then(async (response) => {
+      if (!active || !response.ok) return;
+      const payload = (await response.json()) as { fields?: string[] };
+      setKnownSpecs(payload.fields || []);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -38,6 +151,14 @@ export function AdminProductsPanel({
 
   function variantsOf(product: Product) {
     return drafts[product.id] ?? product.variants ?? [];
+  }
+
+  function specsOf(product: Product) {
+    return specDrafts[product.id] ?? product.specs ?? [];
+  }
+
+  function rememberFields(fields?: string[]) {
+    if (fields?.length) setKnownSpecs(fields);
   }
 
   function editVariant(productId: string, variantId: string, patch: Partial<ProductVariant>, current: ProductVariant[]) {
@@ -58,13 +179,17 @@ export function AdminProductsPanel({
         description: details[product.id] ?? product.description ?? "",
         hidden: product.hidden,
         relatedIds: relatedIds(product),
+        specs: specsOf(product),
       }),
     });
+    const payload = (await response.json().catch(() => null)) as { specs?: ProductSpec[]; fields?: string[] } | null;
     setBusyId(null);
     if (!response.ok) {
       setMessage("Could not save that product.");
       return;
     }
+    if (payload?.specs) setSpecDrafts((state) => ({ ...state, [product.id]: payload.specs || [] }));
+    rememberFields(payload?.fields);
     setMessage("Product details saved in MongoDB.");
     router.refresh();
   }
@@ -110,13 +235,14 @@ export function AdminProductsPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ variants: variantsOf(product) }),
     });
-    const payload = (await response.json().catch(() => null)) as { error?: string; variants?: ProductVariant[] } | null;
+    const payload = (await response.json().catch(() => null)) as { error?: string; variants?: ProductVariant[]; fields?: string[] } | null;
     setBusyId(null);
     if (!response.ok) {
       setMessage(payload?.error || "Could not save the colors.");
       return;
     }
     if (payload?.variants) setDrafts((state) => ({ ...state, [product.id]: payload.variants || [] }));
+    rememberFields(payload?.fields);
     setMessage("Colors saved. Upload a photo for each color.");
     router.refresh();
   }
@@ -193,7 +319,35 @@ export function AdminProductsPanel({
         {filtered.map((product) => {
           const open = openId === product.id;
           return (
-            <article key={product.id} className={product.hidden ? "admin-product-block is-hidden" : "admin-product-block"}>
+            <article
+              key={product.id}
+              className={[
+                "admin-product-block",
+                product.hidden ? "is-hidden" : "",
+                dropTarget === product.id ? "is-drop" : "",
+              ].filter(Boolean).join(" ")}
+              onDragEnter={(event) => {
+                if (![...event.dataTransfer.types].includes("Files")) return;
+                event.preventDefault();
+                setDropTarget(product.id);
+              }}
+              onDragOver={(event) => {
+                if (![...event.dataTransfer.types].includes("Files")) return;
+                event.preventDefault();
+                setDropTarget(product.id);
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setDropTarget((current) => (current === product.id ? null : current));
+              }}
+              onDrop={(event) => {
+                if (!event.dataTransfer.files?.length) return;
+                event.preventDefault();
+                setDropTarget(null);
+                if ((event.target as HTMLElement).closest(".admin-dropzone")) return;
+                upload(product.id, event.dataTransfer.files);
+              }}
+            >
               <button type="button" className="admin-product" onClick={() => setOpenId(open ? null : product.id)}>
                 {product.thumb ? <img src={product.thumb} alt="" /> : <span className="admin-job-placeholder" />}
                 <span>
@@ -222,19 +376,35 @@ export function AdminProductsPanel({
                       </div>
                     ))}
                   </div>
-                  <label className="admin-dropzone">
-                    <strong>{busyId === product.id ? "Saving…" : "Add photos"}</strong>
-                    <span>JPG, PNG, or WebP. Several files can belong to this one product.</span>
-                    <input className="admin-dropzone-input" type="file" accept="image/*" multiple onChange={(event) => upload(product.id, event.target.files)} />
-                  </label>
+                  <PhotoDrop
+                    busy={busyId === product.id}
+                    title="Drop an image here"
+                    hint="Or click to choose JPG, PNG, or WebP. Several photos can belong to this product."
+                    onFiles={(files) => upload(product.id, files)}
+                  />
+                  <div>
+                    <p className="text-sm font-semibold">Specifications</p>
+                    <span className="spec-hint">Screen size, display, battery. Type a new section or pick one already used. The name stays slightly bolder on the product page.</span>
+                    <SpecSections specs={specsOf(product)} onChange={(next) => setSpecDrafts((state) => ({ ...state, [product.id]: next }))} />
+                  </div>
                   <div className="variant-list">
                     <p className="text-sm font-bold">Colors and storage</p>
                     {variantsOf(product).map((item, index) => (
-                      <div className="variant-card" key={item.id}>
+                        <div className="variant-card" key={item.id}>
                         <p>Variant {index + 1}</p>
                         <div className="variant-grid">
                           <label>
                             Color
+                            <input
+                              className="color-dot"
+                              type="color"
+                              aria-label={`Color for variant ${index + 1}`}
+                              value={item.hex || "#d1d5db"}
+                              onChange={(event) => editVariant(product.id, item.id, { hex: event.target.value }, variantsOf(product))}
+                            />
+                          </label>
+                          <label>
+                            Color name
                             <input value={item.color} placeholder="Deep Blue" onChange={(event) => editVariant(product.id, item.id, { color: event.target.value }, variantsOf(product))} />
                           </label>
                           <label>
@@ -254,6 +424,13 @@ export function AdminProductsPanel({
                             <input type="number" min="0" value={item.stock || ""} onChange={(event) => editVariant(product.id, item.id, { stock: Number(event.target.value) || 0 }, variantsOf(product))} />
                           </label>
                         </div>
+                        <div>
+                          <p className="text-sm font-semibold">Sections for this color</p>
+                          <SpecSections
+                            specs={item.specs || []}
+                            onChange={(next) => editVariant(product.id, item.id, { specs: next }, variantsOf(product))}
+                          />
+                        </div>
                         <div className="admin-thumbs">
                           {item.images.map((photo) => (
                             <div className="admin-thumb" key={photo.url}>
@@ -264,11 +441,12 @@ export function AdminProductsPanel({
                             </div>
                           ))}
                         </div>
-                        <label className="admin-dropzone">
-                          <strong>Upload images for {item.color || "this color"}</strong>
-                          <span>Main photo first, then front, back, and detail views. Save the color before uploading.</span>
-                          <input className="admin-dropzone-input" type="file" accept="image/*" multiple onChange={(event) => uploadVariant(product.id, item.id, event.target.files)} />
-                        </label>
+                        <PhotoDrop
+                          busy={busyId === product.id}
+                          title={`Drop images for ${item.color || "this color"}`}
+                          hint="Main photo first, then front, back, and detail views. Save the color before uploading."
+                          onFiles={(files) => uploadVariant(product.id, item.id, files)}
+                        />
                         <button
                           type="button"
                           className="button button-quiet"
@@ -286,7 +464,7 @@ export function AdminProductsPanel({
                           ...state,
                           [product.id]: [
                             ...variantsOf(product),
-                            { id: crypto.randomUUID(), color: "", storage: "", sku: "", price: product.price, stock: 0, images: [] },
+                            { id: crypto.randomUUID(), color: "", hex: "#00275a", storage: "", sku: "", price: product.price, stock: 0, images: [], specs: [] },
                           ],
                         }))}
                       >
@@ -324,6 +502,11 @@ export function AdminProductsPanel({
           );
         })}
       </div>
+      <datalist id="known-spec-fields">
+        {knownSpecs.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
     </section>
   );
 }

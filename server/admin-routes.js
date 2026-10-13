@@ -1,5 +1,5 @@
 const multer = require("multer");
-const { loadAdminCatalog, saveProductMeta, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
+const { loadAdminCatalog, saveProductMeta, listSpecFields, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
 const { listReviews, updateReview, deleteReview } = require("./reviews");
 const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
@@ -85,17 +85,27 @@ function mountAdmin(app, { pool, text }) {
     }
   });
 
+  app.get("/api/admin/spec-fields", async (req, res, next) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      res.json({ fields: await listSpecFields() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.patch("/api/admin/products/:id", async (req, res, next) => {
     try {
       if (!requireAdmin(req, res)) return;
-      const variants = await saveProductMeta(req.params.id, {
+      const saved = await saveProductMeta(req.params.id, {
         name: req.body?.name,
         description: req.body?.description,
         hidden: req.body?.hidden,
         relatedIds: req.body?.relatedIds,
+        ...(Array.isArray(req.body?.specs) ? { specs: req.body.specs } : {}),
         ...(Array.isArray(req.body?.variants) ? { variants: req.body.variants } : {}),
       });
-      res.json({ ok: true, variants });
+      res.json({ ok: true, variants: saved.variants, specs: saved.specs, fields: saved.fields });
     } catch (error) {
       next(error);
     }

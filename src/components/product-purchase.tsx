@@ -5,20 +5,21 @@ import { Minus, Plus, Share2 } from "lucide-react";
 import { useState } from "react";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
-import { cartLineId, swatchColor, variantLabel, variantPhotos, variantPrice, variantStock } from "@/lib/variants";
+import { cartLineId, variantLabel, variantPhotos, variantPrice, variantStock, variantSwatch } from "@/lib/variants";
 import { Price } from "./price";
 import { AccentButton } from "./accent-button";
 import { Breadcrumbs } from "./breadcrumbs";
 
 export function ProductPurchase({ product }: { product: Product }) {
   const variants = product.variants || [];
-  const colors = [...new Set(variants.map((item) => item.color).filter(Boolean))];
+  const colorKey = (item: { color: string; hex: string }) => item.color || item.hex;
+  const colors = [...new Set(variants.map(colorKey).filter(Boolean))];
   const [color, setColor] = useState(colors[0] || "");
-  const storages = variants.filter((item) => !color || item.color === color).map((item) => item.storage).filter(Boolean);
+  const storages = variants.filter((item) => !color || colorKey(item) === color).map((item) => item.storage).filter(Boolean);
   const uniqueStorages = [...new Set(storages)];
   const [storage, setStorage] = useState(uniqueStorages[0] || "");
-  const selected = variants.find((item) => item.color === color && item.storage === storage)
-    || variants.find((item) => item.color === color)
+  const selected = variants.find((item) => colorKey(item) === color && item.storage === storage)
+    || variants.find((item) => colorKey(item) === color)
     || variants[0]
     || null;
   const photos = variantPhotos(product, selected);
@@ -31,11 +32,19 @@ export function ProductPurchase({ product }: { product: Product }) {
   const price = variantPrice(product, selected);
   const stock = variantStock(product, selected);
   const inStock = stock > 0;
+  const specRows = (() => {
+    const rows = new Map<string, { label: string; value: string }>();
+    for (const spec of [...(product.specs || []), ...(selected?.specs || [])]) {
+      if (!spec.label || !spec.value) continue;
+      rows.set(spec.label.toLowerCase(), spec);
+    }
+    return [...rows.values()];
+  })();
 
   function chooseColor(next: string) {
     setColor(next);
     setActive(0);
-    const options = variants.filter((item) => item.color === next);
+    const options = variants.filter((item) => colorKey(item) === next);
     if (!options.some((item) => item.storage === storage)) setStorage(options.find((item) => item.storage)?.storage || "");
   }
 
@@ -54,6 +63,7 @@ export function ProductPurchase({ product }: { product: Product }) {
   }
 
   return (
+    <div className="flex w-full flex-col gap-8">
     <div className="flex w-full flex-col items-start justify-start gap-8 lg:flex-row">
       <div className="w-full lg:w-[60%]">
         <div className="flex h-full w-full flex-col-reverse items-start justify-center space-y-[1.5rem] lg:flex-row lg:space-y-0 lg:space-x-[1rem]">
@@ -108,31 +118,24 @@ export function ProductPurchase({ product }: { product: Product }) {
           {colors.length ? (
             <div className="w-full">
               <p className="text-sm font-semibold text-accent">Choose your color</p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-3">
                 {colors.map((item) => {
                   const chosen = item === color;
-                  const preview = variants.find((entry) => entry.color === item && entry.images.length)?.images[0];
+                  const match = variants.find((entry) => colorKey(entry) === item);
                   return (
                     <button
                       key={item}
                       type="button"
                       onClick={() => chooseColor(item)}
+                      aria-label={item}
                       aria-pressed={chosen}
-                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold ${
-                        chosen ? "border-[#EA580C] text-accent" : "border-line text-accent"
-                      }`}
-                    >
-                      {preview ? (
-                        <span className="relative h-6 w-6 overflow-hidden rounded-full border border-line">
-                          <Image src={preview.thumb} alt="" fill sizes="24px" className="object-cover" />
-                        </span>
-                      ) : (
-                        <span className="h-6 w-6 rounded-full border border-line" style={{ background: swatchColor(item) }} />
-                      )}
-                      {item}
-                    </button>
+                      title={item}
+                      className={`h-8 w-8 rounded-full border-2 ${chosen ? "border-[#EA580C] ring-2 ring-[#EA580C] ring-offset-2" : "border-white shadow"}`}
+                      style={{ background: match ? variantSwatch(match) : "#d1d5db" }}
+                    />
                   );
                 })}
+                {color ? <span className="text-sm font-semibold text-accent">{color}</span> : null}
               </div>
             </div>
           ) : null}
@@ -208,6 +211,20 @@ export function ProductPurchase({ product }: { product: Product }) {
           </div>
         </div>
       </div>
+    </div>
+    {specRows.length ? (
+      <section className="w-full rounded-md bg-white px-4 py-8 shadow-md sm:px-8">
+        <h2 className="text-xl font-bold text-accent">Specifications</h2>
+        <div className="mt-4 border-y border-[#e5e7eb]">
+          {specRows.map((row) => (
+            <div key={row.label} className="grid grid-cols-1 gap-1 border-b border-[#e5e7eb] py-4 last:border-b-0 sm:grid-cols-[220px_1fr] sm:gap-8">
+              <p className="text-[15px] font-semibold text-[#111827]">{row.label}</p>
+              <p className="text-[15px] font-normal text-[#4b5563]">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    ) : null}
     </div>
   );
 }
