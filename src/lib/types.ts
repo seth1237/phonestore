@@ -43,6 +43,8 @@ export type Product = {
   specs?: ProductSpec[];
 };
 
+export type CategoryCover = { url: string; publicId?: string };
+
 export type Category = {
   id: string;
   slug: string;
@@ -50,6 +52,7 @@ export type Category = {
   count: number;
   image: string;
   images: string[];
+  covers?: CategoryCover[];
 };
 
 export type Review = {

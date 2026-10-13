@@ -90,6 +90,60 @@ function normalizeVariants(raw) {
   );
 }
 
+function fallbackCategoryImages(members) {
+  const images = [];
+  const seen = new Set();
+  for (const product of members.slice(0, 3)) {
+    const urls = [
+      ...(product.photos || []).map((photo) => photo.url),
+      ...((product.variants || []).flatMap((variant) => (variant.images || []).map((photo) => photo.url))),
+    ];
+    if (!urls.length && (product.thumb || product.image)) urls.push(product.thumb || product.image);
+    for (const url of urls) {
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      images.push(url);
+    }
+  }
+  return images;
+}
+
+function normalizeCovers(raw) {
+  if (!Array.isArray(raw)) return [];
+  const images = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const url = String(item?.url || "").trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    images.push({ url, publicId: String(item?.publicId || "") });
+  }
+  return images.slice(0, 12);
+}
+
+async function savedCovers() {
+  try {
+    const covers = await collection("categoryCovers");
+    return covers.find({}).toArray();
+  } catch (error) {
+    console.error("Category covers are unavailable:", error.message);
+    return [];
+  }
+}
+
+async function saveCategoryCovers(categoryId, images) {
+  const covers = await collection("categoryCovers");
+  await covers.createIndex({ categoryId: 1 }, { unique: true });
+  const clean = normalizeCovers(images);
+  await covers.updateOne(
+    { categoryId: String(categoryId) },
+    { $set: { images: clean, updatedAt: new Date() }, $setOnInsert: { categoryId: String(categoryId) } },
+    { upsert: true },
+  );
+  clearCatalogCache();
+  return clean;
+}
+
 function imageList(product, saved) {
   const images = [];
   const seen = new Set();
@@ -109,7 +163,8 @@ async function buildCatalog({ includeHidden = false } = {}) {
   if (!includeHidden && cache.products && now - cache.at < CACHE_MS) {
     return { products: cache.products, categories: cache.categories };
   }
-  const [erpProducts, saved] = await Promise.all([loadErpProducts(), savedProducts()]);
+  const [erpProducts, saved, coverDocs] = await Promise.all([loadErpProducts(), savedProducts(), savedCovers()]);
+  const coversById = new Map(coverDocs.map((item) => [String(item.categoryId), normalizeCovers(item.images)]));
   const savedById = new Map(saved.map((item) => [String(item.erpId), item]));
   const named = erpProducts
     .map((product) => {
@@ -175,22 +230,8 @@ async function buildCatalog({ includeHidden = false } = {}) {
   const categories = categorySlugs
     .map((category) => {
       const members = linked.filter((product) => product.categoryId === category.id);
-      const images = [];
-      const seen = new Set();
-      for (const product of members) {
-        for (const photo of product.photos) {
-          if (!photo.url || seen.has(photo.url)) continue;
-          seen.add(photo.url);
-          images.push(photo.url);
-        }
-        for (const variant of product.variants || []) {
-          for (const photo of variant.images) {
-            if (!photo.url || seen.has(photo.url)) continue;
-            seen.add(photo.url);
-            images.push(photo.url);
-          }
-        }
-      }
+      const covers = coversById.get(category.id) || [];
+      const images = covers.length ? covers.map((item) => item.url) : fallbackCategoryImages(members);
       return {
         id: category.id,
         slug: category.slug,
@@ -198,6 +239,7 @@ async function buildCatalog({ includeHidden = false } = {}) {
         count: members.length,
         image: images[0] || "",
         images,
+        covers,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
@@ -336,6 +378,7 @@ module.exports = {
   loadCategories,
   loadAdminCatalog,
   saveProductMeta,
+  saveCategoryCovers,
   listSpecFields,
   addProductImages,
   addVariantImages,

@@ -52,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: site.seo.description,
       images: [site.logo],
     },
-    icons: { icon: site.logo, apple: site.logo },
+    icons: { icon: "/favicon.ico", shortcut: "/favicon.ico", apple: "/favicon.ico" },
   };
 }
 

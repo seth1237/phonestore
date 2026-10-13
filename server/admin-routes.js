@@ -1,5 +1,5 @@
 const multer = require("multer");
-const { loadAdminCatalog, saveProductMeta, listSpecFields, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
+const { loadAdminCatalog, saveProductMeta, saveCategoryCovers, listSpecFields, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
 const { listReviews, updateReview, deleteReview } = require("./reviews");
 const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
@@ -80,6 +80,36 @@ function mountAdmin(app, { pool, text }) {
       if (!requireAdmin(req, res)) return;
       const catalog = await loadAdminCatalog();
       res.json(catalog);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/admin/categories/:id", async (req, res, next) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      const images = Array.isArray(req.body?.images) ? req.body.images : [];
+      const covers = await saveCategoryCovers(req.params.id, images);
+      res.json({ ok: true, covers });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/admin/categories/:id/upload", upload.array("file", 8), async (req, res, next) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      if (!configured()) return res.status(500).json({ error: "Cloudinary is not configured." });
+      const files = Array.isArray(req.files) ? req.files : [];
+      if (!files.length) return res.status(400).json({ error: "Choose at least one image." });
+      const uploaded = [];
+      for (const file of files) {
+        uploaded.push(await uploadImage(file.buffer, "phonestore/categories", req.params.id));
+      }
+      const catalog = await loadAdminCatalog();
+      const category = catalog.categories.find((item) => item.id === req.params.id);
+      const covers = await saveCategoryCovers(req.params.id, [...(category?.covers || []), ...uploaded]);
+      res.status(201).json({ ok: true, covers });
     } catch (error) {
       next(error);
     }

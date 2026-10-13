@@ -123,6 +123,13 @@ export function AdminProductsPanel({
   const [specDrafts, setSpecDrafts] = useState<Record<string, ProductSpec[]>>({});
   const [knownSpecs, setKnownSpecs] = useState<string[]>([]);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 2600);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     let active = true;
@@ -190,7 +197,8 @@ export function AdminProductsPanel({
     }
     if (payload?.specs) setSpecDrafts((state) => ({ ...state, [product.id]: payload.specs || [] }));
     rememberFields(payload?.fields);
-    setMessage("Product details saved in MongoDB.");
+    setToast("Product saved.");
+    setOpenId(null);
     router.refresh();
   }
 
@@ -243,7 +251,8 @@ export function AdminProductsPanel({
     }
     if (payload?.variants) setDrafts((state) => ({ ...state, [product.id]: payload.variants || [] }));
     rememberFields(payload?.fields);
-    setMessage("Colors saved. Upload a photo for each color.");
+    setToast("Colors saved.");
+    setOpenId(null);
     router.refresh();
   }
 
@@ -354,7 +363,12 @@ export function AdminProductsPanel({
                   <b>{product.name}</b>
                   <small>{product.category} · {product.slug}{product.hidden ? " · hidden" : ""}</small>
                 </span>
-                <small>{(product.variants || []).length ? `${product.variants?.length} colors` : `${product.photos.length} photos`}</small>
+                <span className="product-colors">
+                  {(product.variants || []).filter((item) => item.hex || item.color).map((item) => (
+                    <span key={item.id} className="color-swatch" style={{ background: item.hex || "#d1d5db" }} title={item.color || item.hex} />
+                  ))}
+                  <small>{(product.variants || []).length ? `${product.variants?.length} colors` : `${product.photos.length} photos`}</small>
+                </span>
               </button>
               {open ? (
                 <div className="admin-editor">
@@ -389,19 +403,26 @@ export function AdminProductsPanel({
                   </div>
                   <div className="variant-list">
                     <p className="text-sm font-bold">Colors and storage</p>
+                    <div className="product-colors product-colors-lg">
+                      {variantsOf(product).map((item) => (
+                        <span key={item.id} className="color-swatch" style={{ background: item.hex || "#d1d5db" }} title={item.color || "Color"} />
+                      ))}
+                    </div>
                     {variantsOf(product).map((item, index) => (
                         <div className="variant-card" key={item.id}>
                         <p>Variant {index + 1}</p>
                         <div className="variant-grid">
                           <label>
                             Color
-                            <input
-                              className="color-dot"
-                              type="color"
-                              aria-label={`Color for variant ${index + 1}`}
-                              value={item.hex || "#d1d5db"}
-                              onChange={(event) => editVariant(product.id, item.id, { hex: event.target.value }, variantsOf(product))}
-                            />
+                            <span className="color-field" style={{ background: item.hex || "#00275a" }}>
+                              <input
+                                className="color-dot"
+                                type="color"
+                                aria-label={`Color for variant ${index + 1}`}
+                                value={item.hex || "#00275a"}
+                                onChange={(event) => editVariant(product.id, item.id, { hex: event.target.value }, variantsOf(product))}
+                              />
+                            </span>
                           </label>
                           <label>
                             Color name
@@ -502,6 +523,7 @@ export function AdminProductsPanel({
           );
         })}
       </div>
+      {toast ? <p className="admin-toast" role="status">{toast}</p> : null}
       <datalist id="known-spec-fields">
         {knownSpecs.map((name) => (
           <option key={name} value={name} />

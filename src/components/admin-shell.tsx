@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, LogOut, Mail, Package, Star, Tag, ClipboardList } from "lucide-react";
+import { LayoutDashboard, LogOut, Mail, Package, Star, Tag, ClipboardList, Images } from "lucide-react";
 import { apiFetch, clearAdminSession } from "@/lib/client-api";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/categories", label: "Categories", icon: Images },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/offers", label: "Offers", icon: Tag },
   { href: "/admin/messages", label: "Messages", icon: Mail },
