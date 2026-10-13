@@ -8,9 +8,7 @@ function baseUrl() {
 }
 
 function orgId() {
-  const id = process.env.ERP_ORG_ID;
-  if (!id) throw new Error("ERP_ORG_ID is not set. Add it to .env.");
-  return id;
+  return process.env.ERP_ORG_ID || "69d63bdcc81e84290298784d";
 }
 
 function displayCategory(name) {

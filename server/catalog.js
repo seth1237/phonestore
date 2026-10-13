@@ -16,8 +16,13 @@ async function productCollection() {
 }
 
 async function savedProducts() {
-  const products = await productCollection();
-  return products.find({}).toArray();
+  try {
+    const products = await productCollection();
+    return products.find({}).toArray();
+  } catch (error) {
+    console.error("Product metadata is unavailable:", error.message);
+    return [];
+  }
 }
 
 function imageList(product, saved) {

@@ -1,10 +1,16 @@
 import { cookies } from "next/headers";
-
-const origin = process.env.NEXT_PUBLIC_API_URL || process.env.API_ORIGIN || "http://127.0.0.1:3001";
+import { apiUrl, usesEmbeddedApi } from "@/lib/api-origin";
 
 export async function adminFetch<T>(path: string): Promise<T | null> {
   const cookie = (await cookies()).toString();
-  const response = await fetch(`${origin}${path}`, {
+  if (usesEmbeddedApi()) {
+    const { callApi } = await import("@/lib/embedded-api");
+    const result = await callApi("GET", path, { headers: { cookie } });
+    if (result.status === 401) return null;
+    if (result.status >= 400) throw new Error(`Admin API ${path} returned ${result.status}`);
+    return JSON.parse(result.body.toString("utf8")) as T;
+  }
+  const response = await fetch(apiUrl(path), {
     headers: { cookie },
     cache: "no-store",
   });

@@ -212,4 +212,56 @@ if (require.main === module) {
   });
 }
 
-module.exports = { seed };
+function fallbackContent() {
+  const shop = catalog.shop;
+  const popularHours = {};
+  for (const key of ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]) {
+    popularHours[key] = catalog.popular[key] || Array(24).fill(0);
+  }
+  return {
+    site: {
+      name: shop.name,
+      legalName: shop.legalName,
+      tagline: shop.tagline,
+      heroTitle: shop.heroTitle,
+      heroBody: shop.heroBody,
+      heroCta: shop.heroCta,
+      logo: shop.logo,
+      cover: shop.cover,
+      phones: catalog.phones,
+      phone: catalog.phones.join(" / "),
+      email: shop.email || "",
+      whatsapp: shop.whatsapp || "",
+      address: shop.address,
+      coordinates: { lat: Number(shop.lat), lng: Number(shop.lng) },
+      currency: shop.currency,
+      footerBlurb: shop.footerBlurb,
+      credit: { label: shop.creditLabel, href: shop.creditHref },
+      social: { facebook: shop.facebook || "", instagram: shop.instagram || "", website: shop.website || "" },
+      seo: {
+        title: shop.seoTitle,
+        description: shop.seoDescription,
+        keywords: String(shop.keywords || "").split(",").map((item) => item.trim()).filter(Boolean),
+      },
+      hours: catalog.hours.map(([day, , open, close]) => ({ day, open, close })),
+      popularHours,
+    },
+    offers: catalog.offers.map(([id, title, description, validFrom, validUntil, paused]) => ({
+      id,
+      title,
+      description,
+      validFrom: String(validFrom).replace(" ", "T"),
+      validUntil: String(validUntil).replace(" ", "T"),
+      paused: Boolean(paused),
+    })),
+    posts: [{
+      slug: catalog.post.slug,
+      kicker: catalog.post.kicker,
+      title: catalog.post.title,
+      coverAlt: catalog.post.coverAlt,
+      blocks: catalog.post.blocks,
+    }],
+  };
+}
+
+module.exports = { seed, fallbackContent };

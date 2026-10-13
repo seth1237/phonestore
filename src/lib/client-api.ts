@@ -1,8 +1,6 @@
-const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:3001").replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-origin";
 
-export function apiUrl(path: string) {
-  return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
-}
+export { apiUrl };
 
 const sessionSeconds = 7 * 24 * 60 * 60;
 

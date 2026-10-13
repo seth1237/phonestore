@@ -1,10 +1,13 @@
 import { cache } from "react";
+import { apiUrl, usesEmbeddedApi } from "@/lib/api-origin";
 import type { BlogPost, Category, Offer, Product, Review, ReviewStats, Site } from "@/lib/types";
 
-const origin = process.env.NEXT_PUBLIC_API_URL || process.env.API_ORIGIN || "http://127.0.0.1:3001";
-
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${origin}${path}`, { cache: "no-store" });
+  if (usesEmbeddedApi()) {
+    const { callApiJson } = await import("@/lib/embedded-api");
+    return callApiJson<T>("GET", path);
+  }
+  const response = await fetch(apiUrl(path), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Shop API ${path} returned ${response.status}`);
   }

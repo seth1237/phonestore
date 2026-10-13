@@ -6,10 +6,20 @@ const { createQuotation, requestInvoice } = require("./erp");
 const { loadProducts, loadCategories } = require("./catalog");
 const { listReviews, createReview } = require("./reviews");
 const { mountAdmin } = require("./admin-routes");
+const { fallbackContent } = require("./seed");
 
 const DAY_KEYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
 async function loadSite() {
+  try {
+    return await loadSiteFromMysql();
+  } catch (error) {
+    console.error("Shop profile is being served without MySQL:", error.message);
+    return fallbackContent().site;
+  }
+}
+
+async function loadSiteFromMysql() {
   const [shops] = await pool.query("SELECT * FROM shop WHERE id = 1");
   const shop = shops[0];
   if (!shop) return null;
@@ -60,10 +70,14 @@ function text(value) {
   return String(value || "").trim();
 }
 
-async function main() {
-  await ensureSchema(pool);
-  const [shops] = await pool.query("SELECT id FROM shop WHERE id = 1");
-  if (!shops.length) await seed(pool);
+async function buildApp() {
+  try {
+    await ensureSchema(pool);
+    const [shops] = await pool.query("SELECT id FROM shop WHERE id = 1");
+    if (!shops.length) await seed(pool);
+  } catch (error) {
+    console.error("MySQL is unavailable. Shop pages use the saved profile.", error.message);
+  }
 
   const app = express();
   const allowedOrigins = String(process.env.WEB_ORIGIN || "http://127.0.0.1:3000,http://localhost:3000")
@@ -198,7 +212,8 @@ async function main() {
         })),
       );
     } catch (error) {
-      next(error);
+      console.error("Offers are being served without MySQL:", error.message);
+      res.json(fallbackContent().offers);
     }
   });
 
@@ -215,7 +230,8 @@ async function main() {
         })),
       );
     } catch (error) {
-      next(error);
+      console.error("Posts are being served without MySQL:", error.message);
+      res.json(fallbackContent().posts);
     }
   });
 
@@ -232,7 +248,10 @@ async function main() {
         blocks: typeof row.blocks === "string" ? JSON.parse(row.blocks) : row.blocks,
       });
     } catch (error) {
-      next(error);
+      const post = fallbackContent().posts.find((item) => item.slug === req.params.slug);
+      if (!post) return res.status(404).json({ error: "Post not found." });
+      console.error("Post is being served without MySQL:", error.message);
+      res.json(post);
     }
   });
 
@@ -251,7 +270,15 @@ async function main() {
       );
       res.status(201).json({ id: result.insertId });
     } catch (error) {
-      next(error);
+      try {
+        const { collection } = require("./mongo");
+        const messages = await collection("messages");
+        const result = await messages.insertOne({ name, phone, email, message, createdAt: new Date() });
+        res.status(201).json({ id: String(result.insertedId) });
+      } catch (mongoError) {
+        console.error("Message was not saved:", mongoError.message);
+        next(error);
+      }
     }
   });
 
@@ -265,7 +292,7 @@ async function main() {
     if (!name || !phone || !email || !location || !items.length) {
       return res.status(400).json({ error: "Name, phone, email, location, and at least one item are required." });
     }
-    const connection = await pool.getConnection();
+    let connection;
     try {
       const catalog = await loadProducts();
       const lines = [];
@@ -293,35 +320,51 @@ async function main() {
       });
       const quotation = quote?.quotation || {};
       const total = Number(quotation.subTotal) || lines.reduce((sum, line) => sum + line.price * line.qty, 0);
-      await connection.beginTransaction();
-      const [order] = await connection.query(
-        "INSERT INTO orders (customer_name, phone, email, notes, total, quotation_id, quotation_number) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [name, phone, email, notes, total, quotation._id || null, quotation.quotationNumber || null],
-      );
-      for (const line of lines) {
-        await connection.query(
-          "INSERT INTO order_items (order_id, product_id, name, qty, price) VALUES (?, ?, ?, ?, ?)",
-          [order.insertId, line.productId, line.name, line.qty, line.price],
+      let orderId = null;
+      try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+        const [order] = await connection.query(
+          "INSERT INTO orders (customer_name, phone, email, notes, total, quotation_id, quotation_number) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [name, phone, email, notes, total, quotation._id || null, quotation.quotationNumber || null],
         );
+        for (const line of lines) {
+          await connection.query(
+            "INSERT INTO order_items (order_id, product_id, name, qty, price) VALUES (?, ?, ?, ?, ?)",
+            [order.insertId, line.productId, line.name, line.qty, line.price],
+          );
+        }
+        await connection.commit();
+        orderId = order.insertId;
+      } catch (error) {
+        console.error("Quotation was created. The local order row was not saved:", error.message);
+        if (connection) {
+          try {
+            await connection.rollback();
+          } catch {
+            /* no open transaction */
+          }
+        }
       }
-      await connection.commit();
       res.status(201).json({
-        id: order.insertId,
+        id: orderId,
         total,
         quotationId: quotation._id || null,
         quotationNumber: quotation.quotationNumber || null,
       });
     } catch (error) {
-      try {
-        await connection.rollback();
-      } catch {
-        /* no open transaction */
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch {
+          /* no open transaction */
+        }
       }
       if (error.status) return res.status(error.status).json({ error: error.message });
       if (error.message && !error.code) return res.status(400).json({ error: error.message });
       next(error);
     } finally {
-      connection.release();
+      if (connection) connection.release();
     }
   });
 
@@ -344,13 +387,28 @@ async function main() {
     res.status(500).json({ error: "The shop API could not complete that request." });
   });
 
-  const port = Number(process.env.API_PORT || 3001);
-  app.listen(port, "127.0.0.1", () => {
-    console.log(`Shop API listening on http://127.0.0.1:${port}`);
-  });
+  return app;
 }
 
-main().catch((error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+let appPromise;
+
+function createApp() {
+  if (!appPromise) appPromise = buildApp();
+  return appPromise;
+}
+
+if (require.main === module) {
+  createApp()
+    .then((app) => {
+      const port = Number(process.env.API_PORT || 3001);
+      app.listen(port, "127.0.0.1", () => {
+        console.log(`Shop API listening on http://127.0.0.1:${port}`);
+      });
+    })
+    .catch((error) => {
+      console.error(error.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { createApp };

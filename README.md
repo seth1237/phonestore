@@ -40,7 +40,7 @@ npm run dev:api
 npm run dev:web
 ```
 
-The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`.
+The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`. On Vercel, leave `NEXT_PUBLIC_API_URL` empty so the site serves the API on the same host. A localhost address is ignored there. Set `MONGODB_URI` in the Vercel project so reviews and product photos stay attached to the catalog. Shop hours and offers come from MySQL when `MYSQL_HOST` is a database the deployment can reach, and from the built-in shop profile otherwise.
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API listens on `127.0.0.1:3001`. `.env` stays on your machine and is not committed.
 

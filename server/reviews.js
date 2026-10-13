@@ -60,11 +60,22 @@ async function migrateFromMysql(pool) {
 }
 
 async function listReviews(pool) {
-  if (pool) await migrateFromMysql(pool);
-  const reviews = await reviewsCollection();
-  const rows = await reviews.find({}).sort({ date: -1, _id: -1 }).toArray();
-  const mapped = rows.map(mapReview);
-  return { stats: reviewStats(mapped), reviews: mapped };
+  try {
+    if (pool) {
+      try {
+        await migrateFromMysql(pool);
+      } catch (error) {
+        console.error("Review migration skipped:", error.message);
+      }
+    }
+    const reviews = await reviewsCollection();
+    const rows = await reviews.find({}).sort({ date: -1, _id: -1 }).toArray();
+    const mapped = rows.map(mapReview);
+    return { stats: reviewStats(mapped), reviews: mapped };
+  } catch (error) {
+    console.error("Reviews are unavailable:", error.message);
+    return { stats: reviewStats([]), reviews: [] };
+  }
 }
 
 async function createReview({ name, text, rating }) {
