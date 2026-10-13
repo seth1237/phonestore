@@ -35,23 +35,31 @@ Install, load the catalog, and start the API and the site as separate processes:
 
 ```bash
 npm install
-npm run db:seed
-npm run dev:api
+cd server
+npm install
+npm run dev
+```
+
+In another terminal, from the site folder:
+
+```bash
 npm run dev:web
 ```
 
-The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`. On Vercel, leave `NEXT_PUBLIC_API_URL` empty so the site serves the API on the same host. A localhost address is ignored there. Set `MONGODB_URI` in the Vercel project so reviews and product photos stay attached to the catalog. Shop hours and offers come from MySQL when `MYSQL_HOST` is a database the deployment can reach, and from the built-in shop profile otherwise.
+`cd server && npm run dev` is the backend. Deploy that folder on its own with `npm install` and `npm start`. It reads `../.env` when you run it from this repo, and the host's environment variables when you deploy it. Set `PORT` on the host. The API listens on `0.0.0.0`.
 
-Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API listens on `127.0.0.1:3001`. `.env` stays on your machine and is not committed.
+The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`. Point that URL at the deployed API, and set `WEB_ORIGIN` to the site's public address.
+
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The local API listens on port 3001. `.env` stays on your machine and is not committed.
 
 ## Scripts
 
-- `npm run dev:api` — API only
+- `cd server && npm run dev` — API for local development
+- `cd server && npm start` — API for deployment
 - `npm run dev:web` — site only
 - `npm run dev` — both, in one terminal, still separate processes
-- `npm run db:seed` — load the shop profile and catalog into MySQL
+- `npm run db:seed` — load the shop profile into MySQL
 - `npm run build` — production build of the site
-- `npm run start:api` — production API
 - `npm run start:web` — production site
 - `npm run lint` — ESLint
 
@@ -65,5 +73,5 @@ Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API listens on `127.0.0
 - `POST /api/messages` — contact form
 - `POST /api/orders` — checkout
 
-The browser calls these through `/backend/...` on the site.
+The site calls these on the API origin.
 # phonestore

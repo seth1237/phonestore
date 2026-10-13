@@ -1,3 +1,4 @@
+require("./env");
 const { pool } = require("./db");
 const { ensureSchema } = require("./schema");
 

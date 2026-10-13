@@ -1,3 +1,4 @@
+require("./env");
 const express = require("express");
 const { pool } = require("./db");
 const { ensureSchema } = require("./schema");
@@ -400,9 +401,10 @@ function createApp() {
 if (require.main === module) {
   createApp()
     .then((app) => {
-      const port = Number(process.env.API_PORT || 3001);
-      app.listen(port, "127.0.0.1", () => {
-        console.log(`Shop API listening on http://127.0.0.1:${port}`);
+      const port = Number(process.env.PORT || process.env.API_PORT || 3001);
+      const host = process.env.HOST || "0.0.0.0";
+      app.listen(port, host, () => {
+        console.log(`Shop API listening on http://${host}:${port}`);
       });
     })
     .catch((error) => {

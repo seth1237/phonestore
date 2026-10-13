@@ -19,6 +19,9 @@ function applyEnvFile(file) {
   }
 }
 
+applyEnvFile(path.join(__dirname, ".env"));
+applyEnvFile(path.join(__dirname, "../.env"));
+applyEnvFile(path.join(__dirname, "atlas-credentials.env"));
 applyEnvFile(path.join(process.cwd(), ".env"));
 applyEnvFile(path.join(process.cwd(), "server/atlas-credentials.env"));
 
