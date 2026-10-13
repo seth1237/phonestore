@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import type { Product } from "@/lib/types";
+import { defaultCartLineId } from "@/lib/variants";
 import { Price } from "./price";
 
 export function ProductCard({
@@ -34,7 +35,7 @@ export function ProductCard({
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          if (inStock) add(product.id, 1);
+          if (inStock) add(defaultCartLineId(product), 1);
         }}
         className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-secondary p-1 text-white transition-colors hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
       >

@@ -314,8 +314,17 @@ async function buildApp() {
         }
         const product = catalog.find((entry) => entry.id === productId);
         if (!product) return res.status(400).json({ error: "One of the products is no longer in the catalog." });
-        if (product.stock < qty) return res.status(400).json({ error: `${product.name} does not have enough stock.` });
-        lines.push({ productId, name: product.name, qty, price: product.price });
+        const variantId = text(item.variantId);
+        const variant = variantId ? (product.variants || []).find((entry) => entry.id === variantId) : null;
+        if (variantId && !variant) return res.status(400).json({ error: `Choose a color for ${product.name}.` });
+        if ((product.variants || []).length && !variant) {
+          return res.status(400).json({ error: `Choose a color for ${product.name}.` });
+        }
+        const stock = variant ? variant.stock : product.stock;
+        const price = variant && variant.price > 0 ? variant.price : product.price;
+        if (stock < qty) return res.status(400).json({ error: `${product.name} does not have enough stock.` });
+        const label = variant ? [variant.color, variant.storage].filter(Boolean).join(", ") : "";
+        lines.push({ productId, name: label ? `${product.name} — ${label}` : product.name, qty, price });
       }
       const quote = await createQuotation({
         clientName: name,

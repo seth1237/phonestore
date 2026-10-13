@@ -5,22 +5,39 @@ import { Minus, Plus, Share2 } from "lucide-react";
 import { useState } from "react";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
+import { cartLineId, swatchColor, variantLabel, variantPhotos, variantPrice, variantStock } from "@/lib/variants";
 import { Price } from "./price";
 import { AccentButton } from "./accent-button";
 import { Breadcrumbs } from "./breadcrumbs";
 
 export function ProductPurchase({ product }: { product: Product }) {
-  const photos = product.photos.length
-    ? product.photos
-    : product.image
-      ? [{ url: product.image, thumb: product.thumb || product.image }]
-      : [];
+  const variants = product.variants || [];
+  const colors = [...new Set(variants.map((item) => item.color).filter(Boolean))];
+  const [color, setColor] = useState(colors[0] || "");
+  const storages = variants.filter((item) => !color || item.color === color).map((item) => item.storage).filter(Boolean);
+  const uniqueStorages = [...new Set(storages)];
+  const [storage, setStorage] = useState(uniqueStorages[0] || "");
+  const selected = variants.find((item) => item.color === color && item.storage === storage)
+    || variants.find((item) => item.color === color)
+    || variants[0]
+    || null;
+  const photos = variantPhotos(product, selected);
+  const gallery = photos.length ? photos : product.image ? [{ url: product.image, thumb: product.thumb || product.image }] : [];
   const [active, setActive] = useState(0);
   const [qty, setQty] = useState(0);
   const [note, setNote] = useState("");
   const { add } = useCart();
-  const current = photos[active];
-  const inStock = product.stock > 0;
+  const current = gallery[Math.min(active, Math.max(gallery.length - 1, 0))];
+  const price = variantPrice(product, selected);
+  const stock = variantStock(product, selected);
+  const inStock = stock > 0;
+
+  function chooseColor(next: string) {
+    setColor(next);
+    setActive(0);
+    const options = variants.filter((item) => item.color === next);
+    if (!options.some((item) => item.storage === storage)) setStorage(options.find((item) => item.storage)?.storage || "");
+  }
 
   async function share() {
     const url = window.location.href;
@@ -41,7 +58,7 @@ export function ProductPurchase({ product }: { product: Product }) {
       <div className="w-full lg:w-[60%]">
         <div className="flex h-full w-full flex-col-reverse items-start justify-center space-y-[1.5rem] lg:flex-row lg:space-y-0 lg:space-x-[1rem]">
           <div className="flex w-full flex-row items-start justify-start space-x-2 overflow-x-auto rounded-md bg-white px-4 py-8 shadow-md lg:h-full lg:w-[20%] lg:flex-col lg:space-x-0 lg:space-y-4 lg:overflow-y-auto">
-            {photos.map((photo, index) => (
+            {gallery.map((photo, index) => (
               <button
                 key={photo.url}
                 type="button"
@@ -85,9 +102,64 @@ export function ProductPurchase({ product }: { product: Product }) {
           />
           <h1 className="text-[1.5rem] text-black lg:text-[2.5rem]">{product.name}</h1>
           <div className="text-[2rem] font-bold text-accent lg:text-[3rem]">
-            <Price amount={product.price} />
+            <Price amount={price} />
           </div>
           {product.description ? <p className="text-[1rem] font-normal text-accent">{product.description}</p> : null}
+          {colors.length ? (
+            <div className="w-full">
+              <p className="text-sm font-semibold text-accent">Choose your color</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {colors.map((item) => {
+                  const chosen = item === color;
+                  const preview = variants.find((entry) => entry.color === item && entry.images.length)?.images[0];
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => chooseColor(item)}
+                      aria-pressed={chosen}
+                      className={`flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold ${
+                        chosen ? "border-[#EA580C] text-accent" : "border-line text-accent"
+                      }`}
+                    >
+                      {preview ? (
+                        <span className="relative h-6 w-6 overflow-hidden rounded-full border border-line">
+                          <Image src={preview.thumb} alt="" fill sizes="24px" className="object-cover" />
+                        </span>
+                      ) : (
+                        <span className="h-6 w-6 rounded-full border border-line" style={{ background: swatchColor(item) }} />
+                      )}
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+          {uniqueStorages.length ? (
+            <div className="w-full">
+              <p className="text-sm font-semibold text-accent">Storage</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {uniqueStorages.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => {
+                      setStorage(item);
+                      setActive(0);
+                    }}
+                    aria-pressed={item === storage}
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                      item === storage ? "border-[#EA580C] text-accent" : "border-line text-accent"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {selected ? <p className="text-sm text-accent">{variantLabel(selected)}{selected.sku ? ` · ${selected.sku}` : ""}</p> : null}
           <div className="flex w-full flex-col items-start justify-start space-y-[1.5rem]">
             <div className="flex w-full flex-row items-center justify-between space-x-6">
               <div className="flex flex-row items-center justify-evenly divide-x divide-[#e5e7eb] rounded-md border border-line">
@@ -114,7 +186,7 @@ export function ProductPurchase({ product }: { product: Product }) {
                   disabled={!inStock}
                   onClick={() => {
                     if (!inStock) return;
-                    add(product.id, Math.max(qty, 1));
+                    add(cartLineId(product.id, selected?.id), Math.max(qty, 1));
                     setNote("Added to cart");
                   }}
                 >

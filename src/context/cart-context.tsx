@@ -8,12 +8,23 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { Product } from "@/lib/types";
+import type { Product, ProductVariant } from "@/lib/types";
 import { apiFetch } from "@/lib/client-api";
+import { parseCartLineId, variantLabel, variantPhotos, variantPrice } from "@/lib/variants";
 
 export type CartLine = {
   id: string;
   qty: number;
+};
+
+export type CartDetail = {
+  lineId: string;
+  product: Product;
+  variant: ProductVariant | null;
+  qty: number;
+  price: number;
+  label: string;
+  thumb: string;
 };
 
 type CartContextValue = {
@@ -24,7 +35,7 @@ type CartContextValue = {
   setQty: (id: string, qty: number) => void;
   remove: (id: string) => void;
   clear: () => void;
-  detailed: { product: Product; qty: number }[];
+  detailed: CartDetail[];
   total: number;
 };
 
@@ -86,15 +97,27 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () =>
       lines
         .map((line) => {
-          const product = products.find((item) => item.id === line.id);
-          return product ? { product, qty: line.qty } : null;
+          const { productId, variantId } = parseCartLineId(line.id);
+          const product = products.find((item) => item.id === productId);
+          if (!product) return null;
+          const variant = variantId ? (product.variants || []).find((item) => item.id === variantId) || null : null;
+          const photos = variantPhotos(product, variant);
+          return {
+            lineId: line.id,
+            product,
+            variant,
+            qty: line.qty,
+            price: variantPrice(product, variant),
+            label: variant ? variantLabel(variant) : "",
+            thumb: photos[0]?.thumb || product.thumb,
+          };
         })
-        .filter((line): line is { product: Product; qty: number } => Boolean(line)),
+        .filter((line): line is CartDetail => Boolean(line)),
     [lines, products],
   );
 
   const count = detailed.reduce((sum, line) => sum + line.qty, 0);
-  const total = detailed.reduce((sum, line) => sum + line.product.price * line.qty, 0);
+  const total = detailed.reduce((sum, line) => sum + line.price * line.qty, 0);
 
   const value = useMemo(
     () => ({ lines, count, ready, add, setQty, remove, clear, detailed, total }),

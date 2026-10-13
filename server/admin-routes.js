@@ -1,5 +1,5 @@
 const multer = require("multer");
-const { loadAdminCatalog, saveProductMeta, addProductImages, removeProductImage } = require("./catalog");
+const { loadAdminCatalog, saveProductMeta, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
 const { listReviews, updateReview, deleteReview } = require("./reviews");
 const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
@@ -88,13 +88,14 @@ function mountAdmin(app, { pool, text }) {
   app.patch("/api/admin/products/:id", async (req, res, next) => {
     try {
       if (!requireAdmin(req, res)) return;
-      await saveProductMeta(req.params.id, {
+      const variants = await saveProductMeta(req.params.id, {
         name: req.body?.name,
         description: req.body?.description,
         hidden: req.body?.hidden,
         relatedIds: req.body?.relatedIds,
+        ...(Array.isArray(req.body?.variants) ? { variants: req.body.variants } : {}),
       });
-      res.json({ ok: true });
+      res.json({ ok: true, variants });
     } catch (error) {
       next(error);
     }
@@ -108,9 +109,10 @@ function mountAdmin(app, { pool, text }) {
       if (!files.length) return res.status(400).json({ error: "Choose at least one image." });
       const images = [];
       for (const file of files) {
-        images.push(await uploadImage(file.buffer, "phonestore/products", req.params.id));
+        images.push(await uploadImage(file.buffer, "phonestore/products", req.body?.variantId || req.params.id));
       }
-      await addProductImages(req.params.id, images);
+      if (req.body?.variantId) await addVariantImages(req.params.id, req.body.variantId, images);
+      else await addProductImages(req.params.id, images);
       res.status(201).json({ ok: true, images });
     } catch (error) {
       next(error);
@@ -137,7 +139,8 @@ function mountAdmin(app, { pool, text }) {
       if (!requireAdmin(req, res)) return;
       const publicId = text(req.body?.publicId);
       if (!publicId) return res.status(400).json({ error: "Image id is required." });
-      await removeProductImage(req.params.id, publicId);
+      if (req.body?.variantId) await removeVariantImage(req.params.id, req.body.variantId, publicId);
+      else await removeProductImage(req.params.id, publicId);
       await deleteImage(publicId);
       res.json({ ok: true });
     } catch (error) {

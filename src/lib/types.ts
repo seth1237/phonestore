@@ -1,5 +1,15 @@
 export type ProductPhoto = { url: string; thumb: string; publicId?: string };
 
+export type ProductVariant = {
+  id: string;
+  color: string;
+  storage: string;
+  sku: string;
+  price: number;
+  stock: number;
+  images: ProductPhoto[];
+};
+
 export type RelatedProduct = {
   id: string;
   slug: string;
@@ -25,6 +35,7 @@ export type Product = {
   category: string;
   hidden?: boolean;
   related?: RelatedProduct[];
+  variants?: ProductVariant[];
 };
 
 export type Category = {

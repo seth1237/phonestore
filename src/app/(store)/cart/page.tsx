@@ -28,29 +28,30 @@ export default function CartPage() {
           </div>
         ) : (
           <ul className="flex w-full flex-col gap-4">
-            {detailed.map(({ product, qty }) => (
-              <li key={product.id} className="flex w-full flex-row items-center gap-4 border-b border-line pb-4">
+            {detailed.map(({ lineId, product, qty, price, label, thumb }) => (
+              <li key={lineId} className="flex w-full flex-row items-center gap-4 border-b border-line pb-4">
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-[#f3f4f6]">
-                  {product.thumb ? (
-                    <Image src={product.thumb} alt="" fill sizes="80px" className="object-cover" />
+                  {thumb ? (
+                    <Image src={thumb} alt="" fill sizes="80px" className="object-cover" />
                   ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{product.name}</p>
+                  {label ? <p className="text-xs text-muted">{label}</p> : null}
                   <p className="text-sm font-bold text-accent">
-                    <Price amount={product.price} />
+                    <Price amount={price} />
                   </p>
                 </div>
                 <div className="flex items-center rounded-md border border-line">
-                  <button type="button" aria-label="Decrease" className="p-2" onClick={() => setQty(product.id, qty - 1)}>
+                  <button type="button" aria-label="Decrease" className="p-2" onClick={() => setQty(lineId, qty - 1)}>
                     <Minus size={16} />
                   </button>
                   <span className="min-w-6 text-center text-sm">{qty}</span>
-                  <button type="button" aria-label="Increase" className="p-2" onClick={() => setQty(product.id, qty + 1)}>
+                  <button type="button" aria-label="Increase" className="p-2" onClick={() => setQty(lineId, qty + 1)}>
                     <Plus size={16} />
                   </button>
                 </div>
-                <button type="button" aria-label={`Remove ${product.name}`} onClick={() => remove(product.id)}>
+                <button type="button" aria-label={`Remove ${product.name}`} onClick={() => remove(lineId)}>
                   <Trash2 size={16} />
                 </button>
               </li>

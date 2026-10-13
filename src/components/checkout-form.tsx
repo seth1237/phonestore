@@ -70,7 +70,11 @@ export function CheckoutForm({ site }: { site: Site }) {
               email: form.get("email"),
               location: form.get("location"),
               notes: form.get("notes"),
-              items: detailed.map(({ product, qty }) => ({ productId: product.id, qty })),
+              items: detailed.map(({ product, variant, qty }) => ({
+                productId: product.id,
+                variantId: variant?.id,
+                qty,
+              })),
             }),
           });
           if (!response.ok) {
@@ -113,12 +117,12 @@ export function CheckoutForm({ site }: { site: Site }) {
       <aside className="h-fit w-full rounded-md bg-white px-4 py-8 shadow-md lg:w-[40%]">
         <h2 className="text-2xl font-bold">Summary</h2>
         <ul className="mt-6 space-y-3">
-          {detailed.map(({ product, qty }) => (
-            <li key={product.id} className="flex justify-between text-sm">
+          {detailed.map(({ lineId, product, qty, price, label }) => (
+            <li key={lineId} className="flex justify-between text-sm">
               <span>
-                {product.name} × {qty}
+                {product.name}{label ? ` (${label})` : ""} × {qty}
               </span>
-              <span className="font-semibold">{formatPrice(product.price * qty)}</span>
+              <span className="font-semibold">{formatPrice(price * qty)}</span>
             </li>
           ))}
         </ul>

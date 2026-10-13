@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Category, Product } from "@/lib/types";
+import type { Category, Product, ProductVariant } from "@/lib/types";
 import { apiFetch } from "@/lib/client-api";
 
 export function AdminProductsPanel({
@@ -21,6 +21,7 @@ export function AdminProductsPanel({
   const [names, setNames] = useState<Record<string, string>>({});
   const [details, setDetails] = useState<Record<string, string>>({});
   const [related, setRelated] = useState<Record<string, string[]>>({});
+  const [drafts, setDrafts] = useState<Record<string, ProductVariant[]>>({});
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -33,6 +34,17 @@ export function AdminProductsPanel({
 
   function relatedIds(product: Product) {
     return related[product.id] ?? (product.related || []).map((item) => item.id);
+  }
+
+  function variantsOf(product: Product) {
+    return drafts[product.id] ?? product.variants ?? [];
+  }
+
+  function editVariant(productId: string, variantId: string, patch: Partial<ProductVariant>, current: ProductVariant[]) {
+    setDrafts((state) => ({
+      ...state,
+      [productId]: (state[productId] ?? current).map((item) => (item.id === variantId ? { ...item, ...patch } : item)),
+    }));
   }
 
   async function save(product: Product) {
@@ -90,6 +102,64 @@ export function AdminProductsPanel({
     router.refresh();
   }
 
+  async function saveVariants(product: Product) {
+    setBusyId(product.id);
+    setMessage("");
+    const response = await apiFetch(`/api/admin/products/${product.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variants: variantsOf(product) }),
+    });
+    const payload = (await response.json().catch(() => null)) as { error?: string; variants?: ProductVariant[] } | null;
+    setBusyId(null);
+    if (!response.ok) {
+      setMessage(payload?.error || "Could not save the colors.");
+      return;
+    }
+    if (payload?.variants) setDrafts((state) => ({ ...state, [product.id]: payload.variants || [] }));
+    setMessage("Colors saved. Upload a photo for each color.");
+    router.refresh();
+  }
+
+  async function uploadVariant(productId: string, variantId: string, files: FileList | null) {
+    if (!files?.length) return;
+    setBusyId(productId);
+    setMessage("");
+    const body = new FormData();
+    body.set("variantId", variantId);
+    for (const file of Array.from(files)) body.append("file", file);
+    const response = await apiFetch(`/api/admin/products/${productId}/upload`, { method: "POST", body });
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    setBusyId(null);
+    if (!response.ok) {
+      setMessage(payload?.error || "Upload failed");
+      return;
+    }
+    setDrafts((state) => {
+      const next = { ...state };
+      delete next[productId];
+      return next;
+    });
+    setMessage("Color photos saved to Cloudinary.");
+    router.refresh();
+  }
+
+  async function removeVariantImage(productId: string, variantId: string, publicId: string) {
+    setBusyId(productId);
+    await apiFetch(`/api/admin/products/${productId}/images`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publicId, variantId }),
+    });
+    setDrafts((state) => {
+      const next = { ...state };
+      delete next[productId];
+      return next;
+    });
+    setBusyId(null);
+    router.refresh();
+  }
+
   async function removeImage(productId: string, publicId: string) {
     setBusyId(productId);
     await apiFetch(`/api/admin/products/${productId}/images`, {
@@ -106,7 +176,7 @@ export function AdminProductsPanel({
       <div className="card-title">
         <div>
           <h3>Products</h3>
-          <span>Drop several photos onto one product. Attach other products that belong with it.</span>
+          <span>Keep every color on one product. Each color has its own photos, price, and stock.</span>
         </div>
       </div>
       {message ? <p className="admin-message">{message}</p> : null}
@@ -130,7 +200,7 @@ export function AdminProductsPanel({
                   <b>{product.name}</b>
                   <small>{product.category} · {product.slug}{product.hidden ? " · hidden" : ""}</small>
                 </span>
-                <small>{product.photos.length} photos</small>
+                <small>{(product.variants || []).length ? `${product.variants?.length} colors` : `${product.photos.length} photos`}</small>
               </button>
               {open ? (
                 <div className="admin-editor">
@@ -157,6 +227,74 @@ export function AdminProductsPanel({
                     <span>JPG, PNG, or WebP. Several files can belong to this one product.</span>
                     <input className="admin-dropzone-input" type="file" accept="image/*" multiple onChange={(event) => upload(product.id, event.target.files)} />
                   </label>
+                  <div className="variant-list">
+                    <p className="text-sm font-bold">Colors and storage</p>
+                    {variantsOf(product).map((item, index) => (
+                      <div className="variant-card" key={item.id}>
+                        <p>Variant {index + 1}</p>
+                        <div className="variant-grid">
+                          <label>
+                            Color
+                            <input value={item.color} placeholder="Deep Blue" onChange={(event) => editVariant(product.id, item.id, { color: event.target.value }, variantsOf(product))} />
+                          </label>
+                          <label>
+                            Storage
+                            <input value={item.storage} placeholder="256 GB" onChange={(event) => editVariant(product.id, item.id, { storage: event.target.value }, variantsOf(product))} />
+                          </label>
+                          <label>
+                            SKU
+                            <input value={item.sku} placeholder="IP17P-BLU-256" onChange={(event) => editVariant(product.id, item.id, { sku: event.target.value }, variantsOf(product))} />
+                          </label>
+                          <label>
+                            Price (KSh)
+                            <input type="number" min="0" value={item.price || ""} onChange={(event) => editVariant(product.id, item.id, { price: Number(event.target.value) || 0 }, variantsOf(product))} />
+                          </label>
+                          <label>
+                            Stock
+                            <input type="number" min="0" value={item.stock || ""} onChange={(event) => editVariant(product.id, item.id, { stock: Number(event.target.value) || 0 }, variantsOf(product))} />
+                          </label>
+                        </div>
+                        <div className="admin-thumbs">
+                          {item.images.map((photo) => (
+                            <div className="admin-thumb" key={photo.url}>
+                              <img src={photo.url} alt="" />
+                              {photo.publicId ? (
+                                <button type="button" aria-label="Remove color photo" onClick={() => removeVariantImage(product.id, item.id, photo.publicId || "")}>×</button>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                        <label className="admin-dropzone">
+                          <strong>Upload images for {item.color || "this color"}</strong>
+                          <span>Main photo first, then front, back, and detail views. Save the color before uploading.</span>
+                          <input className="admin-dropzone-input" type="file" accept="image/*" multiple onChange={(event) => uploadVariant(product.id, item.id, event.target.files)} />
+                        </label>
+                        <button
+                          type="button"
+                          className="button button-quiet"
+                          onClick={() => setDrafts((state) => ({ ...state, [product.id]: variantsOf(product).filter((entry) => entry.id !== item.id) }))}
+                        >
+                          Remove variant
+                        </button>
+                      </div>
+                    ))}
+                    <div className="admin-job-actions">
+                      <button
+                        type="button"
+                        className="button button-quiet"
+                        onClick={() => setDrafts((state) => ({
+                          ...state,
+                          [product.id]: [
+                            ...variantsOf(product),
+                            { id: crypto.randomUUID(), color: "", storage: "", sku: "", price: product.price, stock: 0, images: [] },
+                          ],
+                        }))}
+                      >
+                        Add another variant
+                      </button>
+                      <button type="button" className="button" disabled={busyId === product.id} onClick={() => saveVariants(product)}>Save colors</button>
+                    </div>
+                  </div>
                   <div className="related-list">
                     {products.filter((item) => item.id !== product.id).map((item) => {
                       const selected = relatedIds(product).includes(item.id);

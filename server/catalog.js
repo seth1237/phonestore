@@ -25,6 +25,33 @@ async function savedProducts() {
   }
 }
 
+function mapVariants(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => ({
+      id: String(item?.id || ""),
+      color: String(item?.color || "").trim(),
+      storage: String(item?.storage || "").trim(),
+      sku: String(item?.sku || "").trim(),
+      price: Number(item?.price) || 0,
+      stock: Math.max(0, Number(item?.stock) || 0),
+      images: (Array.isArray(item?.images) ? item.images : [])
+        .filter((image) => image?.url)
+        .map((image) => ({ url: image.url, thumb: image.url, publicId: image.publicId || "" })),
+    }))
+    .filter((item) => item.id && (item.color || item.storage || item.sku || item.images.length));
+}
+
+function normalizeVariants(raw) {
+  const { randomUUID } = require("node:crypto");
+  return mapVariants(
+    (Array.isArray(raw) ? raw : []).map((item) => ({
+      ...item,
+      id: item?.id || randomUUID(),
+    })),
+  );
+}
+
 function imageList(product, saved) {
   const images = [];
   const seen = new Set();
@@ -53,13 +80,19 @@ async function buildCatalog({ includeHidden = false } = {}) {
       const name = extra?.name || product.name;
       const description = extra?.description ?? product.description;
       const photos = imageList(product, extra);
-      const primary = photos[0];
+      const variants = mapVariants(extra?.variants);
+      const priced = variants.map((item) => item.price).filter((price) => price > 0);
+      const lead = variants.find((item) => item.images.length)?.images[0];
+      const primary = lead || photos[0];
       return {
         ...product,
         name,
         description,
+        price: priced.length ? Math.min(...priced) : product.price,
+        stock: variants.length ? variants.reduce((sum, item) => sum + item.stock, 0) : product.stock,
         hidden: Boolean(extra?.hidden),
         relatedIds: Array.isArray(extra?.relatedIds) ? extra.relatedIds.map(String) : [],
+        variants,
         photos,
         image: primary?.url || "",
         thumb: primary?.thumb || "",
@@ -111,6 +144,13 @@ async function buildCatalog({ includeHidden = false } = {}) {
           seen.add(photo.url);
           images.push(photo.url);
         }
+        for (const variant of product.variants || []) {
+          for (const photo of variant.images) {
+            if (!photo.url || seen.has(photo.url)) continue;
+            seen.add(photo.url);
+            images.push(photo.url);
+          }
+        }
       }
       return {
         id: category.id,
@@ -146,8 +186,14 @@ async function saveProductMeta(erpId, patch) {
   if ("description" in patch) update.description = patch.description == null ? null : String(patch.description);
   if ("hidden" in patch) update.hidden = Boolean(patch.hidden);
   if ("relatedIds" in patch) update.relatedIds = (patch.relatedIds || []).map(String).filter((id) => id && id !== erpId);
+  if ("variants" in patch) update.variants = normalizeVariants(patch.variants);
   await products.updateOne({ erpId: String(erpId) }, { $set: update, $setOnInsert: { erpId: String(erpId) } }, { upsert: true });
   clearCatalogCache();
+  if ("variants" in patch) {
+    const saved = await products.findOne({ erpId: String(erpId) });
+    return mapVariants(saved?.variants);
+  }
+  return null;
 }
 
 async function addProductImages(erpId, images) {
@@ -156,6 +202,29 @@ async function addProductImages(erpId, images) {
     { erpId: String(erpId) },
     { $setOnInsert: { erpId: String(erpId) }, $push: { images: { $each: images } }, $set: { updatedAt: new Date() } },
     { upsert: true },
+  );
+  clearCatalogCache();
+}
+
+async function addVariantImages(erpId, variantId, images) {
+  const products = await productCollection();
+  const result = await products.updateOne(
+    { erpId: String(erpId), "variants.id": String(variantId) },
+    { $push: { "variants.$.images": { $each: images } }, $set: { updatedAt: new Date() } },
+  );
+  clearCatalogCache();
+  if (!result.matchedCount) {
+    const error = new Error("Save the color before uploading its photos.");
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function removeVariantImage(erpId, variantId, publicId) {
+  const products = await productCollection();
+  await products.updateOne(
+    { erpId: String(erpId), "variants.id": String(variantId) },
+    { $pull: { "variants.$.images": { publicId } }, $set: { updatedAt: new Date() } },
   );
   clearCatalogCache();
 }
@@ -173,5 +242,7 @@ module.exports = {
   loadAdminCatalog,
   saveProductMeta,
   addProductImages,
+  addVariantImages,
   removeProductImage,
+  removeVariantImage,
 };
