@@ -1,27 +1,27 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Inter, Rubik, Work_Sans } from "next/font/google";
 import { getSite } from "@/lib/api";
 import "./globals.css";
 
-const workSans = localFont({
-  src: "./fonts/work-sans-latin.woff2",
-  weight: "400 700",
-  display: "swap",
+const workSans = Work_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-work-sans",
+  display: "swap",
 });
 
-const rubik = localFont({
-  src: "./fonts/rubik-latin.woff2",
-  weight: "400 700",
-  display: "swap",
+const rubik = Rubik({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-rubik",
+  display: "swap",
 });
 
-const inter = localFont({
-  src: "./fonts/inter-latin.woff2",
-  weight: "400 800",
-  display: "swap",
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 export const dynamic = "force-dynamic";
