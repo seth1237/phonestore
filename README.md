@@ -48,7 +48,7 @@ npm run dev:web
 
 `cd server && npm run dev` is the backend. Deploy that folder on its own with `npm install` and `npm start`. It reads `../.env` when you run it from this repo, and the host's environment variables when you deploy it. Set `PORT` on the host. The API listens on `0.0.0.0`.
 
-The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`. Point that URL at the deployed API, and set `WEB_ORIGIN` to the site's public address.
+Locally the site calls `http://127.0.0.1:3001`. The deployed site calls `https://raibackend.codewithseth.co.ke`. The API allows the browser origins listed in `WEB_ORIGIN`, including `https://phonestore-gilt.vercel.app`.
 
 Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The local API listens on port 3001. `.env` stays on your machine and is not committed.
 

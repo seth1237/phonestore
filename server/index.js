@@ -81,13 +81,22 @@ async function buildApp() {
   }
 
   const app = express();
-  const allowedOrigins = String(process.env.WEB_ORIGIN || "http://127.0.0.1:3000,http://localhost:3000")
+  const allowedOrigins = String(process.env.WEB_ORIGIN || "http://127.0.0.1:3000,http://localhost:3000,https://phonestore-gilt.vercel.app")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin && allowedOrigins.includes(origin)) {
+    let allowed = origin && allowedOrigins.includes(origin);
+    if (origin && !allowed) {
+      try {
+        const host = new URL(origin).hostname;
+        allowed = host === "phonestore-gilt.vercel.app" || (host.endsWith(".vercel.app") && host.startsWith("phonestore"));
+      } catch {
+        allowed = false;
+      }
+    }
+    if (allowed) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
       res.setHeader("Access-Control-Allow-Credentials", "true");
