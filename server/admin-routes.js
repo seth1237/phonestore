@@ -3,6 +3,17 @@ const { loadAdminCatalog, saveProductMeta, addProductImages, removeProductImage 
 const { listReviews, updateReview, deleteReview } = require("./reviews");
 const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
+const { fallbackContent } = require("./seed");
+
+async function mysqlCount(pool, sql) {
+  try {
+    const [rows] = await pool.query(sql);
+    return Number(rows[0]?.total) || 0;
+  } catch (error) {
+    console.error(error.message);
+    return 0;
+  }
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -43,21 +54,21 @@ function mountAdmin(app, { pool, text }) {
   app.get("/api/admin/overview", async (req, res, next) => {
     try {
       if (!requireAdmin(req, res)) return;
-      const [{ products, categories }, reviewData, [messages], [orders], [offers]] = await Promise.all([
+      const [{ products, categories }, reviewData, messages, orders, offers] = await Promise.all([
         loadAdminCatalog(),
         listReviews(pool),
-        pool.query("SELECT COUNT(*) AS total FROM messages"),
-        pool.query("SELECT COUNT(*) AS total FROM orders"),
-        pool.query("SELECT COUNT(*) AS total FROM offers"),
+        mysqlCount(pool, "SELECT COUNT(*) AS total FROM messages"),
+        mysqlCount(pool, "SELECT COUNT(*) AS total FROM orders"),
+        mysqlCount(pool, "SELECT COUNT(*) AS total FROM offers"),
       ]);
       res.json({
         products: products.length,
         hidden: products.filter((product) => product.hidden).length,
         categories: categories.length,
         reviews: reviewData.reviews.length,
-        messages: Number(messages[0].total),
-        orders: Number(orders[0].total),
-        offers: Number(offers[0].total),
+        messages,
+        orders,
+        offers,
       });
     } catch (error) {
       next(error);
@@ -178,7 +189,8 @@ function mountAdmin(app, { pool, text }) {
         })),
       );
     } catch (error) {
-      next(error);
+      console.error("Admin offers are being served without MySQL:", error.message);
+      res.json(fallbackContent().offers);
     }
   });
 
@@ -198,7 +210,8 @@ function mountAdmin(app, { pool, text }) {
       const [rows] = await pool.query("SELECT id, name, phone, email, message, created_at FROM messages ORDER BY id DESC");
       res.json(rows);
     } catch (error) {
-      next(error);
+      console.error("Admin messages are unavailable:", error.message);
+      res.json([]);
     }
   });
 
@@ -210,7 +223,8 @@ function mountAdmin(app, { pool, text }) {
       );
       res.json(rows);
     } catch (error) {
-      next(error);
+      console.error("Admin quotations are unavailable:", error.message);
+      res.json([]);
     }
   });
 }

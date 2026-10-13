@@ -14,7 +14,6 @@ export async function adminFetch<T>(path: string): Promise<T | null> {
     headers: { cookie },
     cache: "no-store",
   });
-  if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`Admin API ${path} returned ${response.status}`);
+  if (!response.ok) return null;
   return response.json() as Promise<T>;
 }
