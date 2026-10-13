@@ -15,7 +15,7 @@ function databaseName() {
 
 async function client() {
   if (!globalState.__raiMongo) {
-    const connection = new MongoClient(uri());
+    const connection = new MongoClient(uri(), { serverSelectionTimeoutMS: 5_000, connectTimeoutMS: 5_000 });
     await connection.connect();
     globalState.__raiMongo = connection;
   }

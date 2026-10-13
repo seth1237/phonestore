@@ -2,6 +2,8 @@ const DEFAULT_BASE_URL = "https://backend.codewithseth.co.ke";
 const CACHE_MS = 60_000;
 
 let catalogCache = { at: 0, products: null };
+let catalogRequest = null;
+const ERP_TIMEOUT_MS = 8_000;
 
 function baseUrl() {
   return (process.env.ERP_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
@@ -44,6 +46,7 @@ function mapProduct(row) {
 async function erpFetch(path, options = {}) {
   const response = await fetch(`${baseUrl()}${path}`, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(ERP_TIMEOUT_MS),
     headers: {
       Accept: "application/json",
       "X-Org-Id": orgId(),
@@ -66,16 +69,33 @@ function fail(response, body, fallback) {
   return error;
 }
 
+async function refreshProducts() {
+  const now = Date.now();
+  try {
+    const { response, body } = await erpFetch(`/api/stock/public/products?orgId=${encodeURIComponent(orgId())}`);
+    if (!response.ok || !body?.success || !Array.isArray(body.data)) {
+      throw fail(response, body, "The product catalog could not be loaded.");
+    }
+    const products = body.data.filter((row) => row.isActive !== false).map(mapProduct);
+    catalogCache = { at: now, products };
+    return products;
+  } catch (error) {
+    if (catalogCache.products) {
+      console.error("ERP catalog refresh failed. Serving the last catalog:", error.message);
+      catalogCache = { ...catalogCache, at: now };
+      return catalogCache.products;
+    }
+    throw error;
+  } finally {
+    catalogRequest = null;
+  }
+}
+
 async function loadProducts() {
   const now = Date.now();
   if (catalogCache.products && now - catalogCache.at < CACHE_MS) return catalogCache.products;
-  const { response, body } = await erpFetch(`/api/stock/public/products?orgId=${encodeURIComponent(orgId())}`);
-  if (!response.ok || !body?.success || !Array.isArray(body.data)) {
-    throw fail(response, body, "The product catalog could not be loaded.");
-  }
-  const products = body.data.filter((row) => row.isActive !== false).map(mapProduct);
-  catalogCache = { at: now, products };
-  return products;
+  if (!catalogRequest) catalogRequest = refreshProducts();
+  return catalogRequest;
 }
 
 async function loadCategories() {
