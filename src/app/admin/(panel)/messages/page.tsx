@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/client-api";
 
 type Message = { id: number; name: string; phone: string; email: string; message: string; created_at: string };
 
@@ -9,7 +10,7 @@ export default function AdminMessagesPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void fetch("/backend/api/admin/messages")
+      void apiFetch("/api/admin/messages")
         .then((response) => (response.ok ? response.json() : []))
         .then((data: Message[]) => setRows(data));
     }, 0);

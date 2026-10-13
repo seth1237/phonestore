@@ -20,10 +20,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async rewrites() {
-    const origin = process.env.API_ORIGIN || "http://127.0.0.1:3001";
-    return [{ source: "/backend/:path*", destination: `${origin}/:path*` }];
-  },
 };
 
 export default nextConfig;

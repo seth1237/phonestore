@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { AccentButton } from "./accent-button";
+import { apiFetch } from "@/lib/client-api";
 
 export function ContactDialog({
   open,
@@ -39,7 +40,7 @@ export function ContactDialog({
               event.preventDefault();
               setError("");
               const form = new FormData(event.currentTarget);
-              const response = await fetch("/backend/api/messages", {
+              const response = await apiFetch("/api/messages", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

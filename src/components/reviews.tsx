@@ -4,6 +4,7 @@ import { Star } from "lucide-react";
 import { useState } from "react";
 import type { Review, ReviewStats } from "@/lib/types";
 import { AccentButton } from "./accent-button";
+import { apiFetch } from "@/lib/client-api";
 
 function Stars({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -116,7 +117,7 @@ function ReviewForm({ onSaved }: { onSaved: (review: Review, stats: ReviewStats)
       className="w-full space-y-3 rounded-md bg-white p-4 shadow-md"
             onSubmit={async (event) => {
               event.preventDefault();
-              const response = await fetch("/backend/api/reviews", {
+              const response = await apiFetch("/api/reviews", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: name.trim(), text: text.trim(), rating }),

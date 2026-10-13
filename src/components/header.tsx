@@ -16,6 +16,7 @@ import { exploreLinks } from "@/data/navigation";
 import type { Category, Product, Site } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
 import { Price } from "./price";
+import { apiFetch } from "@/lib/client-api";
 
 function SearchField({
   id,
@@ -40,7 +41,7 @@ function SearchField({
       return;
     }
     const handle = window.setTimeout(() => {
-      fetch(`/backend/api/search?q=${encodeURIComponent(needle)}`)
+      apiFetch(`/api/search?q=${encodeURIComponent(needle)}`)
         .then((response) => (response.ok ? response.json() : { products: [], categories: [] }))
         .then((data: { products?: Product[]; categories?: Category[] }) => {
           setProducts(data.products ?? []);

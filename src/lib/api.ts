@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { BlogPost, Category, Offer, Product, Review, ReviewStats, Site } from "@/lib/types";
 
-const origin = process.env.API_ORIGIN || "http://127.0.0.1:3001";
+const origin = process.env.NEXT_PUBLIC_API_URL || process.env.API_ORIGIN || "http://127.0.0.1:3001";
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(`${origin}${path}`, { cache: "no-store" });

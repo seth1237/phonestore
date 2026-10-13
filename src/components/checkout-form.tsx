@@ -5,6 +5,7 @@ import { AccentButton, AccentLink } from "@/components/accent-button";
 import { useCart } from "@/context/cart-context";
 import { formatPrice } from "@/lib/format";
 import type { Site } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 export function CheckoutForm({ site }: { site: Site }) {
   const { detailed, total, clear, count } = useCart();
@@ -25,7 +26,7 @@ export function CheckoutForm({ site }: { site: Site }) {
             className="inline-flex cursor-pointer items-center justify-center rounded-md border border-transparent bg-accent px-6 py-4 text-center text-[1rem] font-bold text-white shadow-md transition-colors hover:bg-secondary hover:text-white"
             onClick={async () => {
               setInvoiceError("");
-              const response = await fetch(`/backend/api/quotations/${encodeURIComponent(quotation.id)}/invoice`);
+              const response = await apiFetch(`/api/quotations/${encodeURIComponent(quotation.id)}/invoice`);
               if (!response.ok) {
                 const data = (await response.json().catch(() => null)) as { error?: string } | null;
                 setInvoiceError(data?.error || "The invoice is not ready yet.");
@@ -60,7 +61,7 @@ export function CheckoutForm({ site }: { site: Site }) {
           if (!detailed.length) return;
           setError("");
           const form = new FormData(event.currentTarget);
-          const response = await fetch("/backend/api/orders", {
+          const response = await apiFetch("/api/orders", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

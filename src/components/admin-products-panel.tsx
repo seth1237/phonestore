@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Category, Product } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 export function AdminProductsPanel({
   products,
@@ -37,7 +38,7 @@ export function AdminProductsPanel({
   async function save(product: Product) {
     setBusyId(product.id);
     setMessage("");
-    const response = await fetch(`/backend/api/admin/products/${product.id}`, {
+    const response = await apiFetch(`/api/admin/products/${product.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -58,7 +59,7 @@ export function AdminProductsPanel({
 
   async function toggleHidden(product: Product) {
     setBusyId(product.id);
-    await fetch(`/backend/api/admin/products/${product.id}`, {
+    await apiFetch(`/api/admin/products/${product.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -77,9 +78,8 @@ export function AdminProductsPanel({
     setBusyId(productId);
     setMessage("");
     const body = new FormData();
-    body.set("erpId", productId);
     for (const file of Array.from(files)) body.append("file", file);
-    const response = await fetch("/api/admin/upload", { method: "POST", body });
+    const response = await apiFetch(`/api/admin/products/${productId}/upload`, { method: "POST", body });
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     setBusyId(null);
     if (!response.ok) {
@@ -92,7 +92,7 @@ export function AdminProductsPanel({
 
   async function removeImage(productId: string, publicId: string) {
     setBusyId(productId);
-    await fetch(`/backend/api/admin/products/${productId}/images`, {
+    await apiFetch(`/api/admin/products/${productId}/images`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ publicId }),

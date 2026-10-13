@@ -67,6 +67,8 @@ function readCookie(req) {
 }
 
 function sessionFromRequest(req) {
+  const header = String(req.headers.authorization || "");
+  if (header.startsWith("Bearer ")) return verify(header.slice(7).trim());
   return verify(readCookie(req));
 }
 

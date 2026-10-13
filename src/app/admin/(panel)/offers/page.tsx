@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import type { Offer } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 export default function AdminOffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
 
   async function load() {
-    const response = await fetch("/backend/api/admin/offers");
+    const response = await apiFetch("/api/admin/offers");
     if (response.ok) setOffers(await response.json());
   }
 
@@ -19,7 +20,7 @@ export default function AdminOffersPage() {
   }, []);
 
   async function toggle(offer: Offer) {
-    await fetch(`/backend/api/admin/offers/${offer.id}`, {
+    await apiFetch(`/api/admin/offers/${offer.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paused: !offer.paused }),

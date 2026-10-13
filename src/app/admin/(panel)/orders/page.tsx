@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/client-api";
 
 type Order = {
   id: number;
@@ -17,7 +18,7 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void fetch("/backend/api/admin/orders")
+      void apiFetch("/api/admin/orders")
         .then((response) => (response.ok ? response.json() : []))
         .then((data: Order[]) => setRows(data));
     }, 0);

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { Product } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 export type CartLine = {
   id: string;
@@ -46,7 +47,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       setLines([]);
     }
     setReady(true);
-    fetch("/backend/api/products")
+    apiFetch("/api/products")
       .then((response) => (response.ok ? response.json() : []))
       .then((data: Product[]) => setProducts(Array.isArray(data) ? data : []))
       .catch(() => setProducts([]));

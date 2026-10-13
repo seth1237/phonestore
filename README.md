@@ -31,25 +31,28 @@ ALTER USER 'elevat10_rai'@'localhost' IDENTIFIED BY 'Ned3agbzGfqM2JpPyQz7';
 FLUSH PRIVILEGES;
 ```
 
-Install, load the catalog, and start both processes:
+Install, load the catalog, and start the API and the site as separate processes:
 
 ```bash
 npm install
 npm run db:seed
-npm run dev
+npm run dev:api
+npm run dev:web
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+The site calls the API at `NEXT_PUBLIC_API_URL`. The API allows the browser origins listed in `WEB_ORIGIN`.
 
-The shop API listens only on `127.0.0.1:3001`. The site listens only on `127.0.0.1:3000`. `.env` stays on your machine and is not committed.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). The API listens on `127.0.0.1:3001`. `.env` stays on your machine and is not committed.
 
 ## Scripts
 
-- `npm run dev` — API and Next.js, for local development
+- `npm run dev:api` — API only
+- `npm run dev:web` — site only
+- `npm run dev` — both, in one terminal, still separate processes
 - `npm run db:seed` — load the shop profile and catalog into MySQL
-- `npm run api` — API only
-- `npm run build` — production build
-- `npm run start` — API and the production site
+- `npm run build` — production build of the site
+- `npm run start:api` — production API
+- `npm run start:web` — production site
 - `npm run lint` — ESLint
 
 ## API

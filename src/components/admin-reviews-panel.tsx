@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Review } from "@/lib/types";
+import { apiFetch } from "@/lib/client-api";
 
 export function AdminReviewsPanel({ reviews }: { reviews: Review[] }) {
   const router = useRouter();
@@ -10,7 +11,7 @@ export function AdminReviewsPanel({ reviews }: { reviews: Review[] }) {
   const [message, setMessage] = useState("");
 
   async function save(review: Review) {
-    const response = await fetch(`/backend/api/admin/reviews/${review.id}`, {
+    const response = await apiFetch(`/api/admin/reviews/${review.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -23,7 +24,7 @@ export function AdminReviewsPanel({ reviews }: { reviews: Review[] }) {
   }
 
   async function remove(id: string) {
-    await fetch(`/backend/api/admin/reviews/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/admin/reviews/${id}`, { method: "DELETE" });
     router.refresh();
   }
 

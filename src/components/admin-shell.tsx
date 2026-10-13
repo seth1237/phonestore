@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, LogOut, Mail, Package, Star, Tag, ClipboardList } from "lucide-react";
+import { apiFetch, clearAdminSession } from "@/lib/client-api";
 
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
@@ -18,7 +19,8 @@ export function AdminShell({ email, children }: { email: string; children: React
   const router = useRouter();
 
   async function logout() {
-    await fetch("/backend/api/admin/logout", { method: "POST" });
+    clearAdminSession();
+    await apiFetch("/api/admin/logout", { method: "POST" });
     router.push("/admin/login");
     router.refresh();
   }

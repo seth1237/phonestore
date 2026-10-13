@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch, storeAdminSession } from "@/lib/client-api";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -13,7 +14,7 @@ export default function AdminLoginPage() {
     setSending(true);
     setError("");
     const form = new FormData(event.currentTarget);
-    const response = await fetch("/backend/api/admin/login", {
+    const response = await apiFetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -21,12 +22,13 @@ export default function AdminLoginPage() {
         password: form.get("password"),
       }),
     });
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    const payload = (await response.json().catch(() => null)) as { error?: string; token?: string } | null;
     setSending(false);
     if (!response.ok) {
       setError(payload?.error || "Could not sign in");
       return;
     }
+    if (payload?.token) storeAdminSession(payload.token);
     router.push("/admin");
     router.refresh();
   }

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-const origin = process.env.API_ORIGIN || "http://127.0.0.1:3001";
+const origin = process.env.NEXT_PUBLIC_API_URL || process.env.API_ORIGIN || "http://127.0.0.1:3001";
 
 export async function adminFetch<T>(path: string): Promise<T | null> {
   const cookie = (await cookies()).toString();

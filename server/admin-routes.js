@@ -1,7 +1,13 @@
+const multer = require("multer");
 const { loadAdminCatalog, saveProductMeta, addProductImages, removeProductImage } = require("./catalog");
 const { listReviews, updateReview, deleteReview } = require("./reviews");
-const { deleteImage } = require("./cloudinary");
+const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024, files: 12 },
+});
 
 function requireAdmin(req, res) {
   const session = sessionFromRequest(req);
@@ -20,7 +26,7 @@ function mountAdmin(app, { pool, text }) {
     if (!admin) return res.status(401).json({ error: "Those sign-in details were not recognised." });
     const token = createSession(admin.email);
     res.setHeader("Set-Cookie", cookieHeader(token, SESSION_DAYS * 24 * 60 * 60));
-    res.json({ email: admin.email });
+    res.json({ email: admin.email, token });
   });
 
   app.post("/api/admin/logout", (_req, res) => {
@@ -78,6 +84,23 @@ function mountAdmin(app, { pool, text }) {
         relatedIds: req.body?.relatedIds,
       });
       res.json({ ok: true });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/admin/products/:id/upload", upload.array("file", 12), async (req, res, next) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      if (!configured()) return res.status(500).json({ error: "Cloudinary is not configured." });
+      const files = Array.isArray(req.files) ? req.files : [];
+      if (!files.length) return res.status(400).json({ error: "Choose at least one image." });
+      const images = [];
+      for (const file of files) {
+        images.push(await uploadImage(file.buffer, "phonestore/products", req.params.id));
+      }
+      await addProductImages(req.params.id, images);
+      res.status(201).json({ ok: true, images });
     } catch (error) {
       next(error);
     }

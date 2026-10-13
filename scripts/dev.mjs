@@ -13,8 +13,9 @@ process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
 api.on("exit", (code) => {
-  if (code) {
-    web.kill("SIGTERM");
-    process.exit(code);
-  }
+  console.error(`API exited (${code ?? "signal"}). The site is still running and calls ${process.env.NEXT_PUBLIC_API_URL || process.env.API_ORIGIN || "http://127.0.0.1:3001"}.`);
+});
+
+web.on("exit", (code) => {
+  console.error(`Site exited (${code ?? "signal"}). The API is still running.`);
 });
