@@ -7,6 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
+  CircleUser,
+  LogOut,
   Menu,
   Search,
   ShoppingCart,
@@ -15,6 +17,7 @@ import {
 import { exploreLinks } from "@/data/navigation";
 import type { Category, Product, Site } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
+import { CUSTOMER_EVENT, customerToken, logoutCustomer } from "@/lib/customer-session";
 import { Price } from "./price";
 import { apiFetch } from "@/lib/client-api";
 
@@ -182,10 +185,54 @@ function CartLink({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
+function AccountIcon() {
+  return (
+    <Link
+      href="/account"
+      aria-label="Account"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-accent"
+    >
+      <CircleUser size={26} strokeWidth={2} aria-hidden />
+    </Link>
+  );
+}
+
 export function Header({ site, categories }: { site: Site; categories: Category[] }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
   const pathname = usePathname();
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      const token = customerToken();
+      if (!token) {
+        if (!ignore) setSignedIn(false);
+        return;
+      }
+      const response = await apiFetch("/api/account/me", { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) {
+        window.sessionStorage.removeItem("rai_customer_token");
+        if (!ignore) setSignedIn(false);
+        return;
+      }
+      if (!ignore) setSignedIn(true);
+    }
+    void load();
+    const onChange = () => void load();
+    window.addEventListener(CUSTOMER_EVENT, onChange);
+    return () => {
+      ignore = true;
+      window.removeEventListener(CUSTOMER_EVENT, onChange);
+    };
+  }, [pathname]);
+
+  async function logout() {
+    await logoutCustomer(apiFetch);
+    setSignedIn(false);
+    setMenuOpen(false);
+  }
 
   useEffect(() => {
     setMenuOpen(false);
@@ -234,6 +281,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
             />
           </Link>
           <SearchField id="desktop-search" />
+          <AccountIcon />
           <CartLink />
         </div>
         <div className="relative flex w-full items-center justify-center border-b-[3px] border-secondary bg-accent px-4">
@@ -311,6 +359,14 @@ export function Header({ site, categories }: { site: Site; categories: Category[
               </button>
             </div>
             <nav className="flex flex-col px-2 py-3" aria-label="Mobile">
+              <Link href="/account" className="flex items-center gap-3 border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink">
+                <CircleUser size={20} aria-hidden /> Account
+              </Link>
+              {signedIn ? (
+                <button type="button" className="flex items-center gap-3 border-b border-line px-3 py-3 text-left text-[0.875rem] font-bold text-ink" onClick={() => void logout()}>
+                  <LogOut size={20} aria-hidden /> Log out
+                </button>
+              ) : null}
               {categories.map((category) => (
                 <Link
                   key={category.id}
@@ -325,7 +381,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
               </Link>
             </nav>
             <div className="mt-auto space-y-2 border-t border-line px-5 py-5">
-              {exploreLinks.map((link) => (
+              {exploreLinks.filter((link) => link.href !== "/account").map((link) => (
                 <Link key={link.href} href={link.href} className="block py-1 text-[0.875rem] text-ink">
                   {link.label}
                 </Link>

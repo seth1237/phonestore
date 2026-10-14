@@ -262,12 +262,53 @@ function mountAdmin(app, { pool, text }) {
     try {
       if (!requireAdmin(req, res)) return;
       const [rows] = await pool.query(
-        "SELECT id, customer_name, phone, email, notes, total, quotation_id, quotation_number, created_at FROM orders ORDER BY id DESC",
+        "SELECT id, customer_name, phone, email, location, notes, total, status, payment_status, mpesa_receipt, checkout_request_id, quotation_number, created_at FROM orders ORDER BY id DESC",
       );
-      res.json(rows);
+      const ids = rows.map((row) => row.id);
+      const itemsByOrder = new Map();
+      if (ids.length) {
+        const [items] = await pool.query(
+          `SELECT order_id, name, qty, price FROM order_items WHERE order_id IN (${ids.map(() => "?").join(",")}) ORDER BY id`,
+          ids,
+        );
+        for (const item of items) {
+          const list = itemsByOrder.get(item.order_id) || [];
+          list.push({ name: item.name, qty: item.qty, price: Number(item.price) });
+          itemsByOrder.set(item.order_id, list);
+        }
+      }
+      res.json(rows.map((row) => ({ ...row, total: Number(row.total), items: itemsByOrder.get(row.id) || [] })));
     } catch (error) {
-      console.error("Admin quotations are unavailable:", error.message);
+      console.error("Admin orders are unavailable:", error.message);
       res.json([]);
+    }
+  });
+
+  app.patch("/api/admin/orders/:id", async (req, res, next) => {
+    try {
+      if (!requireAdmin(req, res)) return;
+      const status = String(req.body?.status || "").trim();
+      if (status !== "dispatched" && status !== "delivered") {
+        return res.status(400).json({ error: "Mark the order as dispatched or delivered." });
+      }
+      const [rows] = await pool.query("SELECT id, status, payment_status, checkout_request_id FROM orders WHERE id = ?", [req.params.id]);
+      const order = rows[0];
+      if (!order) return res.status(404).json({ error: "Order not found." });
+      if (order.payment_status !== "paid") return res.status(400).json({ error: "Take the M-Pesa payment before dispatching the order." });
+      if (status === "delivered" && order.status !== "dispatched" && order.status !== "delivered") {
+        return res.status(400).json({ error: "Dispatch the order before marking it delivered." });
+      }
+      await pool.query("UPDATE orders SET status = ? WHERE id = ?", [status, order.id]);
+      const { syncWebsiteOrder } = require("./elevate-orders");
+      void syncWebsiteOrder({
+        shopOrderId: order.id,
+        checkoutRequestId: order.checkout_request_id,
+        status,
+        paymentStatus: "paid",
+      });
+      res.json({ ok: true, status });
+    } catch (error) {
+      next(error);
     }
   });
 }

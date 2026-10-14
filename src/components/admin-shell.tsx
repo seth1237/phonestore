@@ -12,7 +12,7 @@ const nav = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/offers", label: "Offers", icon: Tag },
   { href: "/admin/messages", label: "Messages", icon: Mail },
-  { href: "/admin/orders", label: "Quotations", icon: ClipboardList },
+  { href: "/admin/orders", label: "Orders", icon: ClipboardList },
 ];
 
 export function AdminShell({ email, children }: { email: string; children: React.ReactNode }) {

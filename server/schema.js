@@ -107,6 +107,29 @@ const statements = [
     qty INT NOT NULL,
     price DECIMAL(10,2) NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(160) NOT NULL,
+    phone VARCHAR(40) NOT NULL DEFAULT '',
+    password_hash VARCHAR(128) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY customers_email (email)
+  )`,
+  `CREATE TABLE IF NOT EXISTS payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    checkout_request_id VARCHAR(80) NOT NULL,
+    merchant_request_id VARCHAR(80) NOT NULL DEFAULT '',
+    receipt VARCHAR(32) NOT NULL DEFAULT '',
+    status VARCHAR(32) NOT NULL DEFAULT 'pending',
+    result_desc VARCHAR(255) NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confirmed_at TIMESTAMP NULL,
+    UNIQUE KEY payments_checkout (checkout_request_id)
+  )`,
 ];
 
 async function ensureSchema(pool) {
@@ -116,6 +139,12 @@ async function ensureSchema(pool) {
   const alterations = [
     "ALTER TABLE orders ADD COLUMN quotation_id VARCHAR(64) NULL",
     "ALTER TABLE orders ADD COLUMN quotation_number VARCHAR(40) NULL",
+    "ALTER TABLE orders ADD COLUMN customer_id INT NULL",
+    "ALTER TABLE orders ADD COLUMN location VARCHAR(255) NOT NULL DEFAULT ''",
+    "ALTER TABLE orders ADD COLUMN status VARCHAR(32) NOT NULL DEFAULT 'awaiting_payment'",
+    "ALTER TABLE orders ADD COLUMN payment_status VARCHAR(32) NOT NULL DEFAULT 'pending'",
+    "ALTER TABLE orders ADD COLUMN mpesa_receipt VARCHAR(32) NOT NULL DEFAULT ''",
+    "ALTER TABLE orders ADD COLUMN checkout_request_id VARCHAR(80) NOT NULL DEFAULT ''",
     "ALTER TABLE order_items MODIFY product_id VARCHAR(64) NOT NULL",
   ];
   for (const statement of alterations) {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Checkout",
-  description: "Confirm your order. The shop calls you back to arrange pickup.",
+  description: "Pay for your order with M-Pesa.",
   alternates: { canonical: "/checkout" },
 };
 

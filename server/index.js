@@ -8,6 +8,9 @@ const { loadProducts, loadCategories } = require("./catalog");
 const { listReviews, createReview } = require("./reviews");
 const { mountAdmin } = require("./admin-routes");
 const { fallbackContent } = require("./seed");
+const customers = require("./customers");
+const mpesa = require("./mpesa");
+const { syncWebsiteOrder } = require("./elevate-orders");
 
 const DAY_KEYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
@@ -292,6 +295,245 @@ async function buildApp() {
     }
   });
 
+  function publicCustomer(row) {
+    return { id: row.id, name: row.name, email: row.email, phone: row.phone || "" };
+  }
+
+  async function orderRecord(connection, orderId) {
+    const [orders] = await connection.query(
+      "SELECT id, customer_id, customer_name, phone, email, location, notes, total, status, payment_status, mpesa_receipt, checkout_request_id, quotation_number, created_at FROM orders WHERE id = ?",
+      [orderId],
+    );
+    const order = orders[0];
+    if (!order) return null;
+    const [items] = await connection.query(
+      "SELECT name, qty, price FROM order_items WHERE order_id = ? ORDER BY id",
+      [orderId],
+    );
+    return { ...order, total: Number(order.total), items };
+  }
+
+  async function markPayment(connection, checkoutRequestId, result) {
+    const paid = result.success && !result.pending;
+    const failed = !result.success && !result.pending;
+    const status = paid ? "paid" : failed ? "failed" : "pending";
+    const receipt = result.receipt || "";
+    await connection.query(
+      "UPDATE payments SET status = ?, result_desc = ?, receipt = IF(? = '', receipt, ?), confirmed_at = IF(? = 'paid', NOW(), confirmed_at) WHERE checkout_request_id = ?",
+      [status, result.resultDesc || "", receipt, receipt, status, checkoutRequestId],
+    );
+    if (paid) {
+      await connection.query(
+        "UPDATE orders SET payment_status = 'paid', status = IF(status = 'awaiting_payment', 'paid', status), mpesa_receipt = IF(? = '', mpesa_receipt, ?) WHERE checkout_request_id = ?",
+        [receipt, receipt, checkoutRequestId],
+      );
+    } else if (failed) {
+      await connection.query(
+        "UPDATE orders SET payment_status = 'failed' WHERE checkout_request_id = ? AND payment_status = 'pending'",
+        [checkoutRequestId],
+      );
+    }
+    const [rows] = await connection.query("SELECT id FROM orders WHERE checkout_request_id = ?", [checkoutRequestId]);
+    return rows[0] ? orderRecord(connection, rows[0].id) : null;
+  }
+
+  app.post("/api/account/register", async (req, res) => {
+    const name = text(req.body?.name);
+    const email = text(req.body?.email).toLowerCase();
+    const phone = text(req.body?.phone);
+    const password = String(req.body?.password || "");
+    if (!name || !email || password.length < 8) {
+      return res.status(400).json({ error: "Name, email, and a password of at least 8 characters are required." });
+    }
+    try {
+      const [result] = await pool.query(
+        "INSERT INTO customers (name, email, phone, password_hash) VALUES (?, ?, ?, ?)",
+        [name, email, phone, customers.hashPassword(password)],
+      );
+      await pool.query("UPDATE orders SET customer_id = ? WHERE customer_id IS NULL AND email = ?", [result.insertId, email]);
+      const token = customers.createSession({ id: result.insertId, email });
+      res.setHeader("Set-Cookie", customers.cookieHeader(token, customers.SESSION_DAYS * 24 * 60 * 60));
+      res.status(201).json({ token, customer: { id: result.insertId, name, email, phone } });
+    } catch (error) {
+      if (error.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "An account with that email already exists." });
+      console.error("Customer registration failed:", error.message);
+      res.status(503).json({ error: "Accounts are unavailable right now." });
+    }
+  });
+
+  app.post("/api/account/login", async (req, res) => {
+    const email = text(req.body?.email).toLowerCase();
+    const password = String(req.body?.password || "");
+    try {
+      const [rows] = await pool.query("SELECT id, name, email, phone, password_hash FROM customers WHERE email = ?", [email]);
+      const customer = rows[0];
+      if (!customer || !customers.passwordMatches(password, customer.password_hash)) {
+        return res.status(401).json({ error: "The email or password is not correct." });
+      }
+      const token = customers.createSession(customer);
+      res.setHeader("Set-Cookie", customers.cookieHeader(token, customers.SESSION_DAYS * 24 * 60 * 60));
+      res.json({ token, customer: publicCustomer(customer) });
+    } catch (error) {
+      console.error("Customer login failed:", error.message);
+      res.status(503).json({ error: "Accounts are unavailable right now." });
+    }
+  });
+
+  app.post("/api/account/logout", (_req, res) => {
+    res.setHeader("Set-Cookie", customers.cookieHeader("", 0));
+    res.json({ ok: true });
+  });
+
+  app.get("/api/account/me", async (req, res) => {
+    const session = customers.sessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: "Sign in to see your account." });
+    try {
+      const [rows] = await pool.query("SELECT id, name, email, phone FROM customers WHERE id = ?", [session.id]);
+      if (!rows[0]) return res.status(401).json({ error: "Sign in to see your account." });
+      res.json({ customer: publicCustomer(rows[0]) });
+    } catch (error) {
+      console.error("Customer profile failed:", error.message);
+      res.status(503).json({ error: "Accounts are unavailable right now." });
+    }
+  });
+
+  app.get("/api/account/orders", async (req, res) => {
+    const session = customers.sessionFromRequest(req);
+    if (!session) return res.status(401).json({ error: "Sign in to see your orders." });
+    try {
+      const [orders] = await pool.query(
+        "SELECT id, customer_name, phone, email, location, notes, total, status, payment_status, mpesa_receipt, quotation_number, created_at FROM orders WHERE customer_id = ? ORDER BY id DESC",
+        [session.id],
+      );
+      const ids = orders.map((order) => order.id);
+      const itemsByOrder = new Map();
+      if (ids.length) {
+        const [items] = await pool.query(
+          `SELECT order_id, name, qty, price FROM order_items WHERE order_id IN (${ids.map(() => "?").join(",")}) ORDER BY id`,
+          ids,
+        );
+        for (const item of items) {
+          const list = itemsByOrder.get(item.order_id) || [];
+          list.push({ name: item.name, qty: item.qty, price: Number(item.price) });
+          itemsByOrder.set(item.order_id, list);
+        }
+      }
+      res.json(orders.map((order) => ({ ...order, total: Number(order.total), items: itemsByOrder.get(order.id) || [] })));
+    } catch (error) {
+      console.error("Customer orders failed:", error.message);
+      res.status(503).json({ error: "Orders are unavailable right now." });
+    }
+  });
+
+  app.get("/api/payments/:checkoutRequestId", async (req, res) => {
+    try {
+      const checkoutRequestId = text(req.params.checkoutRequestId);
+      const [existing] = await pool.query(
+        "SELECT status, receipt, result_desc FROM payments WHERE checkout_request_id = ?",
+        [checkoutRequestId],
+      );
+      const payment = existing[0];
+      if (!payment) return res.status(404).json({ error: "That payment was not found." });
+      if (payment.status === "pending") {
+        const result = await mpesa.queryStkPush(checkoutRequestId);
+        const connection = await pool.getConnection();
+        try {
+          const order = await markPayment(connection, checkoutRequestId, { ...result, receipt: payment.receipt });
+          if (order && (result.success || (!result.success && !result.pending))) {
+            void syncWebsiteOrder({
+              shopOrderId: order.id,
+              checkoutRequestId,
+              status: order.status,
+              paymentStatus: order.payment_status,
+              mpesaReceipt: order.mpesa_receipt,
+              resultDesc: result.resultDesc || "",
+            });
+          }
+        } finally {
+          connection.release();
+        }
+      }
+      const [rows] = await pool.query(
+        "SELECT o.id, o.status, o.payment_status, o.mpesa_receipt, o.total, p.status AS payment_row, p.result_desc FROM orders o JOIN payments p ON p.order_id = o.id WHERE p.checkout_request_id = ?",
+        [checkoutRequestId],
+      );
+      const row = rows[0];
+      if (!row) return res.status(404).json({ error: "That payment was not found." });
+      res.json({
+        orderId: row.id,
+        status: row.status,
+        paymentStatus: row.payment_status,
+        receipt: row.mpesa_receipt || "",
+        total: Number(row.total),
+        message: row.result_desc || "",
+      });
+    } catch (error) {
+      console.error("Payment status failed:", error.message);
+      res.status(503).json({ error: "The payment status could not be checked." });
+    }
+  });
+
+  app.post("/api/mpesa/callback", async (req, res) => {
+    if (!mpesa.callbackTokenOk(req)) return res.status(403).json({ ResultCode: 1, ResultDesc: "Invalid callback token" });
+    const parsed = mpesa.parseStkCallback(req.body);
+    if (!parsed.checkoutRequestId) return res.json({ ResultCode: 0, ResultDesc: "Accepted" });
+    try {
+      const connection = await pool.getConnection();
+      try {
+        const order = await markPayment(connection, parsed.checkoutRequestId, {
+          success: parsed.resultCode === 0,
+          pending: false,
+          resultDesc: parsed.resultDesc,
+          receipt: parsed.receipt,
+        });
+        if (order) {
+          void syncWebsiteOrder({
+            shopOrderId: order.id,
+            checkoutRequestId: parsed.checkoutRequestId,
+            status: order.status,
+            paymentStatus: order.payment_status,
+            mpesaReceipt: order.mpesa_receipt,
+            resultDesc: parsed.resultDesc,
+          });
+        }
+      } finally {
+        connection.release();
+      }
+    } catch (error) {
+      console.error("M-Pesa callback was not saved:", error.message);
+    }
+    res.json({ ResultCode: 0, ResultDesc: "Accepted" });
+  });
+
+  app.post("/api/integrations/order-status", async (req, res) => {
+    if (!mpesa.callbackTokenOk(req)) return res.status(403).json({ error: "Invalid callback token." });
+    const checkoutRequestId = text(req.body?.checkoutRequestId);
+    const status = text(req.body?.status);
+    const allowed = new Set(["paid", "dispatched", "delivered"]);
+    if (!checkoutRequestId || !allowed.has(status)) return res.status(400).json({ error: "A payment id and status are required." });
+    try {
+      if (status === "paid") {
+        await pool.query(
+          "UPDATE orders SET payment_status = 'paid', status = IF(status = 'awaiting_payment', 'paid', status), mpesa_receipt = IF(? = '', mpesa_receipt, ?) WHERE checkout_request_id = ?",
+          [text(req.body?.mpesaReceipt), text(req.body?.mpesaReceipt), checkoutRequestId],
+        );
+        await pool.query(
+          "UPDATE payments SET status = 'paid', receipt = IF(? = '', receipt, ?), result_desc = ?, confirmed_at = COALESCE(confirmed_at, NOW()) WHERE checkout_request_id = ?",
+          [text(req.body?.mpesaReceipt), text(req.body?.mpesaReceipt), text(req.body?.resultDesc), checkoutRequestId],
+        );
+      } else {
+        await pool.query(
+          "UPDATE orders SET status = ? WHERE checkout_request_id = ? AND payment_status = 'paid'",
+          [status, checkoutRequestId],
+        );
+      }
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Order status sync failed:", error.message);
+      res.status(503).json({ error: "The order status could not be saved." });
+    }
+  });
+
   app.post("/api/orders", async (req, res, next) => {
     const name = text(req.body?.name);
     const phone = text(req.body?.phone);
@@ -326,50 +568,77 @@ async function buildApp() {
         const label = variant ? [variant.color, variant.storage].filter(Boolean).join(", ") : "";
         lines.push({ productId, name: label ? `${product.name} — ${label}` : product.name, qty, price });
       }
-      const quote = await createQuotation({
-        clientName: name,
-        clientNumber: phone,
-        clientLocation: location,
-        email,
-        items: lines.map((line) => ({
-          productId: line.productId,
-          quantity: line.qty,
-          unitPrice: line.price,
-        })),
-      });
-      const quotation = quote?.quotation || {};
-      const total = Number(quotation.subTotal) || lines.reduce((sum, line) => sum + line.price * line.qty, 0);
-      let orderId = null;
+      let quotation = {};
       try {
-        connection = await pool.getConnection();
-        await connection.beginTransaction();
-        const [order] = await connection.query(
-          "INSERT INTO orders (customer_name, phone, email, notes, total, quotation_id, quotation_number) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [name, phone, email, notes, total, quotation._id || null, quotation.quotationNumber || null],
-        );
-        for (const line of lines) {
-          await connection.query(
-            "INSERT INTO order_items (order_id, product_id, name, qty, price) VALUES (?, ?, ?, ?, ?)",
-            [order.insertId, line.productId, line.name, line.qty, line.price],
-          );
-        }
-        await connection.commit();
-        orderId = order.insertId;
+        const quote = await createQuotation({
+          clientName: name,
+          clientNumber: phone,
+          clientLocation: location,
+          email,
+          items: lines.map((line) => ({
+            productId: line.productId,
+            quantity: line.qty,
+            unitPrice: line.price,
+          })),
+        });
+        quotation = quote?.quotation || {};
       } catch (error) {
-        console.error("Quotation was created. The local order row was not saved:", error.message);
-        if (connection) {
-          try {
-            await connection.rollback();
-          } catch {
-            /* no open transaction */
-          }
-        }
+        console.error("Quotation was not created:", error.message);
       }
+      const total = Number(quotation.subTotal) || lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+      const session = customers.sessionFromRequest(req);
+      const payerPhone = text(req.body?.mpesaPhone) || phone;
+      const prompt = await mpesa.initiateStkPush({
+        phone: payerPhone,
+        amount: total,
+        accountReference: `Rai${Date.now().toString().slice(-8)}`,
+        transactionDesc: "Rai order",
+      });
+      if (!prompt.success || !prompt.checkoutRequestId) {
+        return res.status(502).json({ error: prompt.responseMessage || "The M-Pesa prompt could not be sent." });
+      }
+      connection = await pool.getConnection();
+      await connection.beginTransaction();
+      const [order] = await connection.query(
+        "INSERT INTO orders (customer_id, customer_name, phone, email, location, notes, total, status, payment_status, checkout_request_id, quotation_id, quotation_number) VALUES (?, ?, ?, ?, ?, ?, ?, 'awaiting_payment', 'pending', ?, ?, ?)",
+        [session?.id || null, name, phone, email, location, notes, total, prompt.checkoutRequestId, quotation._id || null, quotation.quotationNumber || null],
+      );
+      for (const line of lines) {
+        await connection.query(
+          "INSERT INTO order_items (order_id, product_id, name, qty, price) VALUES (?, ?, ?, ?, ?)",
+          [order.insertId, line.productId, line.name, line.qty, line.price],
+        );
+      }
+      await connection.query(
+        "INSERT INTO payments (order_id, phone, amount, checkout_request_id, merchant_request_id, status, result_desc) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+        [order.insertId, mpesa.normalizePhone(payerPhone), total, prompt.checkoutRequestId, prompt.merchantRequestId || "", prompt.responseMessage || ""],
+      );
+      await connection.commit();
+      const record = await orderRecord(connection, order.insertId);
+      void syncWebsiteOrder({
+        shopOrderId: order.insertId,
+        customerName: name,
+        phone,
+        email,
+        location,
+        items: lines.map((line) => ({ name: line.name, qty: line.qty, price: line.price })),
+        total,
+        status: "awaiting_payment",
+        paymentStatus: "pending",
+        checkoutRequestId: prompt.checkoutRequestId,
+        merchantRequestId: prompt.merchantRequestId || "",
+        quotationNumber: quotation.quotationNumber || "",
+      });
       res.status(201).json({
-        id: orderId,
+        id: order.insertId,
         total,
         quotationId: quotation._id || null,
         quotationNumber: quotation.quotationNumber || null,
+        payment: {
+          checkoutRequestId: prompt.checkoutRequestId,
+          message: prompt.responseMessage,
+          status: record?.status || "awaiting_payment",
+        },
       });
     } catch (error) {
       if (connection) {
