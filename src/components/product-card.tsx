@@ -42,16 +42,14 @@ export function ProductCard({
         <ShoppingCart size={20} strokeWidth={2} aria-hidden />
       </button>
       <div
-        className={`relative w-full overflow-hidden bg-[#f3f4f6] ${
-          variant === "catalog" ? "aspect-[184/221]" : "h-[10.31rem] lg:h-[13.83rem]"
-        }`}
+        className="relative aspect-[5/6] w-full overflow-hidden bg-[#f3f4f6]"
       >
         {src ? (
           <Image
             src={src}
             alt={product.name}
             fill
-            sizes={variant === "catalog" ? "(min-width: 1024px) 33vw, 50vw" : "184px"}
+            sizes={variant === "catalog" ? "(min-width: 1024px) 33vw, 50vw" : "(min-width: 1024px) 184px, 44vw"}
             className="object-cover object-center"
           />
         ) : null}
