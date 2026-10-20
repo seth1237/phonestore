@@ -5,6 +5,20 @@ import { useRouter } from "next/navigation";
 import type { Category, Product, ProductSpec, ProductVariant } from "@/lib/types";
 import { apiFetch } from "@/lib/client-api";
 
+const COLOR_OPTIONS = [
+  { name: "Midnight", hex: "#252536" },
+  { name: "Olive", hex: "#464324" },
+  { name: "Black", hex: "#202020" },
+  { name: "Blue", hex: "#4856a5" },
+  { name: "Graphite", hex: "#55515a" },
+  { name: "Sky Blue", hex: "#78a9ce" },
+  { name: "White", hex: "#f5f5f5" },
+  { name: "Silver", hex: "#bfc5cc" },
+  { name: "Gold", hex: "#c9a227" },
+  { name: "Red", hex: "#c93737" },
+  { name: "Green", hex: "#3d7953" },
+];
+
 function PhotoDrop({
   busy,
   title,
@@ -124,6 +138,7 @@ export function AdminProductsPanel({
   const [knownSpecs, setKnownSpecs] = useState<string[]>([]);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [toast, setToast] = useState("");
+  const [expandedColorPickers, setExpandedColorPickers] = useState<string[]>([]);
 
   useEffect(() => {
     if (!toast) return;
@@ -173,6 +188,10 @@ export function AdminProductsPanel({
       ...state,
       [productId]: (state[productId] ?? current).map((item) => (item.id === variantId ? { ...item, ...patch } : item)),
     }));
+  }
+
+  function chooseVariantColor(product: Product, variant: ProductVariant, name: string, hex: string) {
+    editVariant(product.id, variant.id, { color: name, hex }, variantsOf(product));
   }
 
   async function save(product: Product) {
@@ -413,16 +432,52 @@ export function AdminProductsPanel({
                         <p>Variant {index + 1}</p>
                         <div className="variant-grid">
                           <label>
-                            Color
-                            <span className="color-field" style={{ background: item.hex || "#00275a" }}>
-                              <input
-                                className="color-dot"
-                                type="color"
-                                aria-label={`Color for variant ${index + 1}`}
-                                value={item.hex || "#00275a"}
-                                onChange={(event) => editVariant(product.id, item.id, { hex: event.target.value }, variantsOf(product))}
-                              />
-                            </span>
+                            Pick a color
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {(expandedColorPickers.includes(item.id) ? COLOR_OPTIONS : COLOR_OPTIONS.slice(0, 6)).map((option) => (
+                                <button
+                                  key={option.name}
+                                  type="button"
+                                  aria-label={`Choose ${option.name}`}
+                                  aria-pressed={item.hex.toLowerCase() === option.hex}
+                                  title={option.name}
+                                  onClick={() => chooseVariantColor(product, item, option.name, option.hex)}
+                                  className={`h-7 w-7 rounded-full border border-black/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                                    item.hex.toLowerCase() === option.hex ? "ring-2 ring-accent ring-offset-2" : ""
+                                  }`}
+                                  style={{ backgroundColor: option.hex }}
+                                />
+                              ))}
+                              <button
+                                type="button"
+                                aria-expanded={expandedColorPickers.includes(item.id)}
+                                onClick={() => setExpandedColorPickers((current) =>
+                                  current.includes(item.id)
+                                    ? current.filter((id) => id !== item.id)
+                                    : [...current, item.id],
+                                )}
+                                className="rounded px-1 text-sm font-semibold text-accent underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                              >
+                                {expandedColorPickers.includes(item.id) ? "Less" : "+5"}
+                              </button>
+                              <span className="color-field" style={{ background: item.hex || "#00275a" }}>
+                                <input
+                                  className="color-dot"
+                                  type="color"
+                                  aria-label={`Custom color for variant ${index + 1}`}
+                                  value={item.hex || "#00275a"}
+                                  onChange={(event) => {
+                                    const option = COLOR_OPTIONS.find((colorOption) => colorOption.hex === event.target.value);
+                                    editVariant(
+                                      product.id,
+                                      item.id,
+                                      { hex: event.target.value, color: option?.name || event.target.value.toUpperCase() },
+                                      variantsOf(product),
+                                    );
+                                  }}
+                                />
+                              </span>
+                            </div>
                           </label>
                           <label>
                             Color name

@@ -7,10 +7,10 @@ const closed = Array(24).fill(0);
 const fallbackSite: Site = {
   name: "Rai Merchants Limited",
   legalName: "Rai Merchants Limited",
-  tagline: "PHONES, ACCESSORIES AND GADGETS",
-  heroTitle: "Phones, accessories and gadgets",
+  tagline: "PHONES, LAPTOPS AND ACCESSORIES",
+  heroTitle: "Phones, Laptops and all Accessories",
   heroBody:
-    "We sell phones, accessories, and gadgets from Njoguini Building, at the intersection of Ronald Ngala Street and Mfangano Street. The shop is open Monday to Friday, 9am to 6pm. Call 0702119333 or 0717159863.",
+    "Explore our range of phones, laptops and accessories at Rai Merchants Limited. Visit us at Njoguini Building, at the intersection of Ronald Ngala Street and Mfangano Street, or call 0702119333 or 0717159863 to ask about product availability and details.",
   heroCta: "Shop now",
   logo: "/logo.png",
   cover: "/media/cover.jpg",

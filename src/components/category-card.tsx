@@ -35,11 +35,6 @@ export function CategoryCard({ category }: { category: Category }) {
             className="object-cover transition duration-300 group-hover:scale-105"
           />
         ) : null}
-        {images.length > 1 ? (
-          <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[0.65rem] font-semibold text-white">
-            {index + 1}/{images.length}
-          </span>
-        ) : null}
       </div>
       <h3 className="px-3 py-3 text-center text-sm font-semibold leading-tight text-accent">{category.name}</h3>
       <p className="px-3 pb-3 text-center text-xs text-muted">
