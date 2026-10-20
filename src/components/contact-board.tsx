@@ -29,6 +29,7 @@ export function ContactBoard({ site }: { site: Site }) {
     <div className="flex h-full w-full flex-col items-center justify-center py-5 font-rubik lg:py-8">
       <main className="flex h-full w-full max-w-[1440px] flex-col items-start justify-center space-y-[1.5rem] rounded-2xl p-4 lg:flex-row lg:space-y-0 lg:space-x-20">
         <div className="flex w-full flex-col space-y-[2.5rem] lg:w-[45%]">
+          <h1 className="text-2xl font-bold text-[#15171A]">Contact {site.name}</h1>
           {social.length ? (
             <div className="flex w-full flex-col items-start justify-start pb-[1.5rem]">
               <h2 className="pb-[1.5rem] text-[1rem] font-bold uppercase text-[#15171A]">Find us on:</h2>
@@ -59,6 +60,8 @@ export function ContactBoard({ site }: { site: Site }) {
                   key={label}
                   type="button"
                   onClick={() => setDay(label)}
+                  aria-label={`Show popular times for ${label}`}
+                  aria-pressed={day === label}
                   className={`pb-[0.27rem] text-[0.6875rem] font-bold uppercase text-[#5E5E5E] ${
                     day === label ? "border-b-[0.1875rem] border-secondary text-accent" : ""
                   }`}
@@ -115,7 +118,7 @@ export function ContactBoard({ site }: { site: Site }) {
                 {site.hours.map((slot) => (
                   <div key={slot.day} className="flex flex-row pb-[0.4rem]">
                     <p className="w-24">{slot.day}</p>
-                    <h3 className="font-medium">{formatHours(slot.open, slot.close)}</h3>
+                    <p className="font-medium">{formatHours(slot.open, slot.close)}</p>
                   </div>
                 ))}
               </div>

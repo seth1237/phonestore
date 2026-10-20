@@ -1,6 +1,6 @@
 const multer = require("multer");
 const { loadAdminCatalog, saveProductMeta, saveCategoryCovers, listSpecFields, addProductImages, addVariantImages, removeProductImage, removeVariantImage } = require("./catalog");
-const { listReviews, updateReview, deleteReview } = require("./reviews");
+const { listAllReviews, updateReview, deleteReview } = require("./reviews");
 const { uploadImage, deleteImage, configured } = require("./cloudinary");
 const { authenticate, createSession, sessionFromRequest, cookieHeader, SESSION_DAYS } = require("./admin-auth");
 const { fallbackContent } = require("./seed");
@@ -56,7 +56,7 @@ function mountAdmin(app, { pool, text }) {
       if (!requireAdmin(req, res)) return;
       const [{ products, categories }, reviewData, messages, orders, offers] = await Promise.all([
         loadAdminCatalog(),
-        listReviews(pool),
+        listAllReviews(pool),
         mysqlCount(pool, "SELECT COUNT(*) AS total FROM messages"),
         mysqlCount(pool, "SELECT COUNT(*) AS total FROM orders"),
         mysqlCount(pool, "SELECT COUNT(*) AS total FROM offers"),
@@ -191,7 +191,7 @@ function mountAdmin(app, { pool, text }) {
   app.get("/api/admin/reviews", async (req, res, next) => {
     try {
       if (!requireAdmin(req, res)) return;
-      res.json(await listReviews(pool));
+      res.json(await listAllReviews(pool));
     } catch (error) {
       next(error);
     }

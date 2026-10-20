@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { FacebookIcon, LinkedinIcon } from "./icons";
 import type { BlogPost } from "@/lib/types";
+import { absoluteSiteUrl } from "@/lib/site-url";
 
 function RichText({ text, strong = [] }: { text: string; strong?: string[] }) {
   if (!strong.length) return <>{text}</>;
@@ -16,7 +17,7 @@ function RichText({ text, strong = [] }: { text: string; strong?: string[] }) {
 }
 
 export function BlogArticle({ post, cover }: { post: BlogPost; cover: string }) {
-  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/blog/${post.slug}`;
+  const shareUrl = absoluteSiteUrl(`/blog/${post.slug}`);
 
   return (
     <article className="flex h-full w-full max-w-[1440px] flex-col items-start justify-center space-y-[1.5rem] rounded-2xl p-4 font-rubik lg:p-10">
@@ -64,7 +65,7 @@ export function BlogArticle({ post, cover }: { post: BlogPost; cover: string }) 
           <div className="flex flex-row items-center space-x-3">
             <a
               className="cursor-pointer rounded-lg border-2 border-black p-2.5"
-              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareUrl)}`}
+              href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(post.title)}`}
               target="_blank"
               rel="noreferrer"
               aria-label="Share on X"

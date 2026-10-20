@@ -14,10 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ReviewsPage() {
-  const { reviews, stats } = await getReviews();
+  const { reviews, stats, available } = await getReviews();
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center font-work">
-      <ReviewSection reviews={reviews} stats={stats} showBrowse />
+    <div className="flex min-h-screen w-full flex-col items-center justify-center py-8 font-work">
+      <h1 className="mb-4 w-full px-6 text-2xl font-bold">Shop Reviews</h1>
+      <ReviewSection reviews={reviews} stats={stats} available={available} showBrowse />
     </div>
   );
 }

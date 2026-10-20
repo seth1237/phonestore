@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { apiUrl, usesEmbeddedApi } from "@/lib/api-origin";
-import type { BlogPost, Category, Offer, Product, Review, ReviewStats, Site } from "@/lib/types";
+import type { BlogPost, Category, Offer, Product, ReviewCollection, ReviewStats, Site } from "@/lib/types";
 
 const closed = Array(24).fill(0);
 
@@ -109,8 +109,15 @@ export function getPost(slug: string) {
 }
 
 export function getReviews() {
-  return getJson<{ stats: ReviewStats; reviews: Review[] }>("/api/reviews").catch(
-    unavailable("/api/reviews", { stats: emptyReviewStats, reviews: [] }),
+  return getJson<ReviewCollection>("/api/reviews").catch(
+    unavailable("/api/reviews", { stats: emptyReviewStats, reviews: [], available: false }),
+  );
+}
+
+export function getProductReviews(id: string) {
+  const path = `/api/products/${encodeURIComponent(id)}/reviews`;
+  return getJson<ReviewCollection>(path).catch(
+    unavailable(path, { stats: emptyReviewStats, reviews: [], available: false }),
   );
 }
 

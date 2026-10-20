@@ -1,29 +1,11 @@
 const { ObjectId } = require("mongodb");
 const { collection } = require("./mongo");
-
-function reviewStats(rows) {
-  const counts = [0, 0, 0, 0, 0];
-  for (const row of rows) {
-    const rating = Number(row.rating);
-    if (rating >= 1 && rating <= 5) counts[rating - 1] += 1;
-  }
-  const total = rows.length;
-  const sum = rows.reduce((totalRating, row) => totalRating + Number(row.rating), 0);
-  return {
-    average_rating: total ? Math.round((sum / total) * 100) / 100 : 0,
-    rating_total: total,
-    review_total: rows.filter((row) => String(row.text || "").trim()).length,
-    five_star_reviews: counts[4],
-    four_star_reviews: counts[3],
-    three_star_reviews: counts[2],
-    two_star_reviews: counts[1],
-    one_star_reviews: counts[0],
-  };
-}
+const { matchesReviewScope, reviewFilter, reviewStats } = require("./review-model");
 
 function mapReview(row) {
   return {
     id: String(row._id),
+    productId: row.productId ? String(row.productId) : null,
     rating: Number(row.rating),
     text: row.text,
     name: row.name,
@@ -59,7 +41,7 @@ async function migrateFromMysql(pool) {
   );
 }
 
-async function listReviews(pool) {
+async function loadReviews(pool, filter, productId = null) {
   try {
     if (pool) {
       try {
@@ -69,19 +51,32 @@ async function listReviews(pool) {
       }
     }
     const reviews = await reviewsCollection();
-    const rows = await reviews.find({}).sort({ date: -1, _id: -1 }).toArray();
-    const mapped = rows.map(mapReview);
-    return { stats: reviewStats(mapped), reviews: mapped };
+    const rows = await reviews.find(filter).sort({ date: -1, _id: -1 }).toArray();
+    const mapped = rows.map(mapReview).filter((review) => matchesReviewScope(review, productId));
+    return { stats: reviewStats(mapped), reviews: mapped, available: true };
   } catch (error) {
     console.error("Reviews are unavailable:", error.message);
-    return { stats: reviewStats([]), reviews: [] };
+    return { stats: reviewStats([]), reviews: [], available: false };
   }
 }
 
-async function createReview({ name, text, rating }) {
+async function listReviews(pool) {
+  return loadReviews(pool, reviewFilter());
+}
+
+async function listProductReviews(pool, productId) {
+  return loadReviews(pool, reviewFilter(productId), productId);
+}
+
+async function listAllReviews(pool) {
+  return loadReviews(pool, {});
+}
+
+async function createReview({ name, text, rating, productId = null }) {
   const reviews = await reviewsCollection();
   const date = new Date().toISOString().slice(0, 10);
   const result = await reviews.insertOne({
+    ...(productId ? { productId: String(productId) } : {}),
     rating,
     text,
     name,
@@ -91,8 +86,12 @@ async function createReview({ name, text, rating }) {
     createdAt: new Date(),
   });
   const created = await reviews.findOne({ _id: result.insertedId });
-  const all = await reviews.find({}).toArray();
-  return { review: mapReview(created), stats: reviewStats(all.map(mapReview)) };
+  const scoped = await reviews.find(reviewFilter(productId)).toArray();
+  return {
+    review: mapReview(created),
+    stats: reviewStats(scoped.map(mapReview).filter((review) => matchesReviewScope(review, productId))),
+    available: true,
+  };
 }
 
 async function updateReview(id, patch) {
@@ -108,4 +107,4 @@ async function deleteReview(id) {
   await reviews.deleteOne({ _id: new ObjectId(id) });
 }
 
-module.exports = { listReviews, createReview, updateReview, deleteReview };
+module.exports = { listReviews, listProductReviews, listAllReviews, createReview, updateReview, deleteReview };

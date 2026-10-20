@@ -43,6 +43,9 @@ export function AdminReviewsPanel({ reviews }: { reviews: Review[] }) {
           {reviews.map((review) => (
             <tr key={review.id}>
               <td>
+                <p className="text-xs font-semibold uppercase text-muted">
+                  {review.productId ? `Product review · ${review.productId}` : "Shop review"}
+                </p>
                 <b>{review.name}</b> · {review.rating}/5 · {review.date}
                 <div>{review.text}</div>
               </td>

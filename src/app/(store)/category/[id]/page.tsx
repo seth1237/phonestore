@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/product-card";
 import { getCategory, getProductsByCategory, getSite } from "@/lib/api";
+import { absoluteSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,19 @@ export async function generateMetadata({
     title: category.name,
     description: `Shop ${category.name} at ${site.name} in Nairobi.`,
     alternates: { canonical: `/category/${category.slug}` },
+    openGraph: {
+      title: category.name,
+      description: `Shop ${category.name} at ${site.name} in Nairobi.`,
+      url: absoluteSiteUrl(`/category/${category.slug}`),
+      images: [{ url: category.image || site.logo, alt: category.name }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: category.name,
+      description: `Shop ${category.name} at ${site.name} in Nairobi.`,
+      images: [category.image || site.logo],
+    },
   };
 }
 

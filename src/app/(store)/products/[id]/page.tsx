@@ -4,8 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductPurchase } from "@/components/product-purchase";
 import { ReviewSection } from "@/components/reviews";
-import { getProduct, getReviews, getSite } from "@/lib/api";
+import { getProduct, getProductReviews, getSite } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import { absoluteSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -27,21 +28,30 @@ export async function generateMetadata({
     openGraph: {
       title: product.name,
       description,
-      images: product.image ? [{ url: product.image, alt: product.name }] : undefined,
+      url: absoluteSiteUrl(`/products/${product.slug}`),
+      images: [{ url: product.image || site.logo, alt: product.name }],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.name,
+      description,
+      images: [product.image || site.logo],
     },
   };
 }
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [product, reviewData] = await Promise.all([getProduct(id), getReviews()]);
+  const product = await getProduct(id);
   if (!product) notFound();
+  const [reviewData, site] = await Promise.all([getProductReviews(product.id), getSite()]);
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: product.description || product.name,
+    ...(product.description ? { description: product.description } : {}),
     image: product.photos.map((photo) => photo.url),
     category: product.category,
     offers: {
@@ -49,14 +59,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       priceCurrency: "KES",
       price: product.price,
       availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      priceValidUntil: "2027-12-31",
     },
   };
 
   return (
     <div className="flex w-full flex-col space-y-8 px-4 py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <ProductPurchase product={product} />
+      <ProductPurchase product={product} site={site} />
       {product.related?.length ? (
         <section className="rounded-md bg-white px-4 py-8 shadow-md">
           <h2 className="text-2xl font-bold">Also with this product</h2>
@@ -75,11 +84,15 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           </div>
         </section>
       ) : null}
-      <section className="flex w-full flex-col items-start justify-evenly space-y-8 rounded-md bg-white pb-8 shadow-md">
-        <div className="flex w-full flex-col items-start justify-start space-y-[1rem] rounded-[2.13rem] px-[1.5rem] py-[2.5rem]">
-          <h2 className="text-[1.5rem] font-bold">Reviews</h2>
-          <ReviewSection reviews={reviewData.reviews} stats={reviewData.stats} />
-        </div>
+      <section className="w-full rounded-md bg-white px-6 py-8 shadow-md">
+        <ReviewSection
+          reviews={reviewData.reviews}
+          stats={reviewData.stats}
+          available={reviewData.available}
+          title={`Reviews for ${product.name}`}
+          reviewEndpoint={`/api/products/${encodeURIComponent(product.id)}/reviews`}
+          emptyMessage={`No reviews for ${product.name} yet. Be the first to share your experience.`}
+        />
       </section>
     </div>
   );

@@ -21,7 +21,17 @@ type PaymentState = {
 };
 
 export function CheckoutForm({ site }: { site: Site }) {
-  const { detailed, total, clear, count } = useCart();
+  const {
+    detailed,
+    total,
+    clear,
+    count,
+    ready: cartReady,
+    catalogReady,
+    catalogError,
+    invalidLines,
+    stockIssueLines,
+  } = useCart();
   const [payment, setPayment] = useState<PaymentState | null>(null);
   const [error, setError] = useState("");
   const [waiting, setWaiting] = useState(false);
@@ -111,6 +121,43 @@ export function CheckoutForm({ site }: { site: Site }) {
     );
   }
 
+  if (!cartReady || !catalogReady) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 px-4 py-16">
+        <h1 className="text-2xl font-bold">Checkout</h1>
+        <p className="text-sm text-muted" role="status">Checking your cart before checkout…</p>
+      </div>
+    );
+  }
+
+  if (catalogError) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 px-4 py-16">
+        <h1 className="text-2xl font-bold">Checkout unavailable</h1>
+        <p className="text-sm leading-6 text-muted" role="alert">
+          We couldn’t confirm the current catalogue and stock. Your saved cart has not been changed.
+        </p>
+        <AccentLink href="/cart" className="w-auto px-6">Review your cart</AccentLink>
+      </div>
+    );
+  }
+
+  if (!detailed.length || invalidLines.length || stockIssueLines.length) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4 px-4 py-16">
+        <h1 className="text-2xl font-bold">{detailed.length ? "Review your cart" : "Your cart is empty"}</h1>
+        <p className="text-sm leading-6 text-muted" role="status">
+          {!detailed.length
+            ? "Add an available product before starting checkout."
+            : "Some saved items are unavailable or exceed current stock. Update or remove them before checkout."}
+        </p>
+        <AccentLink href={detailed.length ? "/cart" : "/products"} className="w-auto px-6">
+          {detailed.length ? "Update cart" : "Browse products"}
+        </AccentLink>
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full flex-col gap-8 px-4 py-8 lg:flex-row">
       <form
@@ -118,6 +165,10 @@ export function CheckoutForm({ site }: { site: Site }) {
         onSubmit={async (event) => {
           event.preventDefault();
           if (!detailed.length || waiting) return;
+          if (invalidLines.length || stockIssueLines.length || catalogError || !catalogReady) {
+            setError("Review your cart and confirm current stock before paying.");
+            return;
+          }
           if (customer && !editing && !confirmed) {
             setError("Confirm that these details are right before paying.");
             return;
@@ -128,42 +179,47 @@ export function CheckoutForm({ site }: { site: Site }) {
           const headers = new Headers({ "Content-Type": "application/json" });
           const token = customerToken();
           if (token) headers.set("Authorization", `Bearer ${token}`);
-          const response = await apiFetch("/api/orders", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              name: form.get("name"),
-              phone: form.get("phone"),
-              email: form.get("email"),
-              location: form.get("location"),
-              notes: form.get("notes"),
-              mpesaPhone: form.get("mpesaPhone"),
-              items: detailed.map(({ product, variant, qty }) => ({
-                productId: product.id,
-                variantId: variant?.id,
-                qty,
-              })),
-            }),
-          });
-          setWaiting(false);
-          const data = (await response.json().catch(() => null)) as {
-            error?: string;
-            id?: number;
-            total?: number;
-            payment?: { checkoutRequestId?: string; message?: string };
-          } | null;
-          if (!response.ok || !data?.payment?.checkoutRequestId || !data.id) {
-            setError(data?.error || "The M-Pesa prompt could not be sent. Try again.");
-            return;
+          try {
+            const response = await apiFetch("/api/orders", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                name: form.get("name"),
+                phone: form.get("phone"),
+                email: form.get("email"),
+                location: form.get("location"),
+                notes: form.get("notes"),
+                mpesaPhone: form.get("mpesaPhone"),
+                items: detailed.map(({ product, variant, qty }) => ({
+                  productId: product.id,
+                  variantId: variant?.id,
+                  qty,
+                })),
+              }),
+            });
+            const data = (await response.json().catch(() => null)) as {
+              error?: string;
+              id?: number;
+              total?: number;
+              payment?: { checkoutRequestId?: string; message?: string };
+            } | null;
+            if (!response.ok || !data?.payment?.checkoutRequestId || !data.id) {
+              setError(data?.error || "The M-Pesa prompt could not be sent. Try again.");
+              return;
+            }
+            setPayment({
+              orderId: data.id,
+              checkoutRequestId: data.payment.checkoutRequestId,
+              message: data.payment.message || "",
+              paymentStatus: "pending",
+              receipt: "",
+              total: Number(data.total) || total,
+            });
+          } catch {
+            setError("The order could not be submitted. Check your connection and try again.");
+          } finally {
+            setWaiting(false);
           }
-          setPayment({
-            orderId: data.id,
-            checkoutRequestId: data.payment.checkoutRequestId,
-            message: data.payment.message || "",
-            paymentStatus: "pending",
-            receipt: "",
-            total: Number(data.total) || total,
-          });
         }}
       >
         <h1 className="text-2xl font-bold">Pay with M-Pesa</h1>
@@ -204,8 +260,8 @@ export function CheckoutForm({ site }: { site: Site }) {
         <input id="checkout-location" name="location" required className="w-full rounded-md border border-line px-3 py-3 text-sm" />
         <label className="block text-sm font-semibold" htmlFor="checkout-notes">Delivery notes</label>
         <textarea id="checkout-notes" name="notes" className="min-h-28 w-full rounded-md border border-line px-3 py-3 text-sm" />
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <AccentButton type="submit" disabled={!detailed.length || waiting || !accountReady || (Boolean(customer) && !editing && !confirmed)}>
+        {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
+        <AccentButton type="submit" disabled={!detailed.length || waiting || !accountReady || !catalogReady || invalidLines.length > 0 || stockIssueLines.length > 0 || (Boolean(customer) && !editing && !confirmed)}>
           {waiting ? "Sending prompt…" : `Pay ${formatPrice(total)}`}
         </AccentButton>
         {!detailed.length ? <p className="text-sm text-muted">Add items to your cart before paying.</p> : null}

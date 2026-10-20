@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import type { Category, Product } from "@/lib/types";
+import { categoryDepartment } from "@/lib/category-navigation";
 import { ProductCard } from "./product-card";
 import { AccentButton } from "./accent-button";
 
@@ -12,12 +13,13 @@ export function ProductsBrowser({
   products,
   categories,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; department?: string }>;
   products: Product[];
   categories: Category[];
 }) {
   const params = use(searchParams);
   const initialQuery = params.q ?? "";
+  const [department, setDepartment] = useState((params.department ?? "").trim().toLowerCase());
   const [query, setQuery] = useState(initialQuery);
   const [categoryId, setCategoryId] = useState<string | "all">("all");
   const [visible, setVisible] = useState(PRODUCTS_PAGE_SIZE);
@@ -26,16 +28,35 @@ export function ProductsBrowser({
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   const all = products;
 
+  useEffect(() => {
+    setDepartment((params.department ?? "").trim().toLowerCase());
+    setQuery(params.q ?? "");
+    setVisible(PRODUCTS_PAGE_SIZE);
+  }, [params.department, params.q]);
+  const departmentCategories = useMemo(() => {
+    if (!department) return null;
+    return new Set(
+      categories
+        .filter((category) =>
+          category.name.trim().toLowerCase() === department.replaceAll("-", " ") ||
+          categoryDepartment(category.name)?.toLowerCase() === department.replaceAll("-", " "),
+        )
+        .map((category) => category.id),
+    );
+  }, [categories, department]);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return all.filter((product) => {
-      const matchesCategory = categoryId === "all" || product.categoryId === categoryId;
+      const matchesCategory = categoryId !== "all"
+        ? product.categoryId === categoryId
+        : !departmentCategories || departmentCategories.has(product.categoryId || "");
       const matchesQuery =
         needle.length < 3 ||
         `${product.name} ${product.category} ${product.description ?? ""}`.toLowerCase().includes(needle);
       return matchesCategory && matchesQuery;
     });
-  }, [all, categoryId, query]);
+  }, [all, categoryId, departmentCategories, query]);
 
   const shown = filtered.slice(0, visible);
 
@@ -45,7 +66,11 @@ export function ProductsBrowser({
         <div className="flex w-full flex-col items-center justify-start space-y-[2.5rem] overflow-hidden">
           <div className="flex w-full flex-col items-start justify-start space-y-[1.5rem]">
             <div className="flex w-full flex-col items-stretch justify-between gap-4 lg:flex-row lg:items-center">
-              <h1 className="text-[1.75rem] font-bold max-lg:sr-only">Products</h1>
+              <h1 className="text-[1.75rem] font-bold max-lg:sr-only">
+                {department
+                  ? `${department.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())} products`
+                  : "Products"}
+              </h1>
               <label className="sr-only" htmlFor="catalog-search">
                 Search products
               </label>
@@ -72,6 +97,7 @@ export function ProductsBrowser({
                   type="button"
                   onClick={() => {
                     setCategoryId("all");
+                    setDepartment("");
                     setVisible(PRODUCTS_PAGE_SIZE);
                   }}
                   className={`shrink-0 p-1.5 text-[1rem] ${

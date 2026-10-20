@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; department?: string }>;
 }) {
   const [products, categories] = await Promise.all([getProducts(), getCategories()]);
   return <ProductsBrowser searchParams={searchParams} products={products} categories={categories} />;

@@ -5,7 +5,7 @@ const { ensureSchema } = require("./schema");
 const { seed } = require("./seed");
 const { createQuotation, requestInvoice } = require("./erp");
 const { loadProducts, loadCategories } = require("./catalog");
-const { listReviews, createReview } = require("./reviews");
+const { listReviews, listProductReviews, createReview } = require("./reviews");
 const { mountAdmin } = require("./admin-routes");
 const { fallbackContent } = require("./seed");
 const customers = require("./customers");
@@ -168,6 +168,34 @@ async function buildApp() {
       const product = products.find((item) => item.slug === req.params.id || item.id === req.params.id);
       if (!product) return res.status(404).json({ error: "Product not found." });
       res.json(product);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/products/:id/reviews", async (req, res, next) => {
+    try {
+      const products = await loadProducts();
+      const product = products.find((item) => item.slug === req.params.id || item.id === req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found." });
+      res.json(await listProductReviews(pool, product.id));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/products/:id/reviews", async (req, res, next) => {
+    try {
+      const products = await loadProducts();
+      const product = products.find((item) => item.slug === req.params.id || item.id === req.params.id);
+      if (!product) return res.status(404).json({ error: "Product not found." });
+      const name = text(req.body?.name);
+      const body = text(req.body?.text);
+      const rating = Number(req.body?.rating);
+      if (!name || body.length < 3 || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Name, a rating from 1 to 5, and a review of at least 3 characters are required." });
+      }
+      res.status(201).json(await createReview({ name, text: body, rating, productId: product.id }));
     } catch (error) {
       next(error);
     }

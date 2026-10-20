@@ -57,12 +57,19 @@ export type Category = {
 
 export type Review = {
   id: string;
+  productId?: string | null;
   rating: number;
   text: string;
   name: string;
   date: string;
   verified: boolean;
   reply: string | null;
+};
+
+export type ReviewCollection = {
+  stats: ReviewStats;
+  reviews: Review[];
+  available: boolean;
 };
 
 export type ReviewStats = {

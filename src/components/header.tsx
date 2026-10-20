@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
   CircleUser,
   LogOut,
   Menu,
@@ -15,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { exploreLinks } from "@/data/navigation";
+import { groupCategories } from "@/lib/category-navigation";
 import type { Category, Product, Site } from "@/lib/types";
 import { useCart } from "@/context/cart-context";
 import { CUSTOMER_EVENT, customerToken, logoutCustomer } from "@/lib/customer-session";
@@ -106,7 +105,7 @@ function SearchField({
             setOpen(true);
           }
         }}
-        className="flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-md bg-secondary text-white"
+        className="flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-md bg-secondary text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <Search size={20} strokeWidth={2} aria-hidden />
       </button>
@@ -164,14 +163,15 @@ function CartLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <Link
       href="/cart"
-      aria-label={`Cart, ${count} items`}
+      aria-label={`Cart, ${count} ${count === 1 ? "item" : "items"}`}
       className={
         mobile
-          ? "relative flex h-[3.13rem] w-[3.13rem] items-center justify-center rounded-full"
-          : "relative flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-full bg-accent text-white"
+          ? "relative flex h-[3.13rem] w-[3.13rem] items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          : "relative flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-accent px-3 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       }
     >
       <span
+        aria-hidden="true"
         className={
           mobile
             ? "absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-white bg-secondary text-[0.8rem] font-bold text-white"
@@ -189,19 +189,25 @@ function AccountIcon() {
   return (
     <Link
       href="/account"
-      aria-label="Account"
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-accent"
+      className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <CircleUser size={26} strokeWidth={2} aria-hidden />
+      <span>Account</span>
     </Link>
   );
 }
 
 export function Header({ site, categories }: { site: Site; categories: Category[] }) {
-  const scroller = useRef<HTMLDivElement>(null);
+  const categoryMenu = useRef<HTMLDivElement>(null);
+  const mobileMenuPanel = useRef<HTMLDivElement>(null);
+  const mobileMenuTrigger = useRef<HTMLButtonElement>(null);
+  const mobileMenuWasOpen = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [expandedMobileGroups, setExpandedMobileGroups] = useState<string[]>([]);
   const [signedIn, setSignedIn] = useState(false);
   const pathname = usePathname();
+  const categoryGroups = groupCategories(categories);
 
   useEffect(() => {
     let ignore = false;
@@ -236,7 +242,61 @@ export function Header({ site, categories }: { site: Site; categories: Category[
 
   useEffect(() => {
     setMenuOpen(false);
+    setCategoryMenuOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    function onPointer(event: MouseEvent) {
+      if (!categoryMenu.current?.contains(event.target as Node)) setCategoryMenuOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setCategoryMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [categoryMenuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      if (mobileMenuWasOpen.current) {
+        mobileMenuWasOpen.current = false;
+        mobileMenuTrigger.current?.focus();
+      }
+      return;
+    }
+
+    mobileMenuWasOpen.current = true;
+    const panel = mobileMenuPanel.current;
+    const focusable = () =>
+      Array.from(panel?.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])') || []);
+    focusable()[0]?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !panel?.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !panel?.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
@@ -245,8 +305,10 @@ export function Header({ site, categories }: { site: Site; categories: Category[
     };
   }, [menuOpen]);
 
-  function scrollNav(direction: number) {
-    scroller.current?.scrollBy({ left: direction * 280, behavior: "smooth" });
+  function toggleMobileGroup(label: string) {
+    setExpandedMobileGroups((current) =>
+      current.includes(label) ? current.filter((item) => item !== label) : [...current, label],
+    );
   }
 
   return (
@@ -286,38 +348,56 @@ export function Header({ site, categories }: { site: Site; categories: Category[
         </div>
         <div className="relative flex w-full items-center justify-center border-b-[3px] border-secondary bg-accent px-4">
           <div className="flex w-full max-w-screen-xl flex-row items-center justify-between gap-8 py-3">
-            <div className="relative flex w-[50vw] flex-1 items-center justify-start">
+            <div ref={categoryMenu} className="relative">
               <button
                 type="button"
-                aria-label="Scroll categories left"
-                onClick={() => scrollNav(-1)}
-                className="absolute left-0 z-10 hidden h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 md:flex"
+                aria-expanded={categoryMenuOpen}
+                aria-controls="desktop-category-menu"
+                onClick={() => setCategoryMenuOpen((open) => !open)}
+                className="rounded px-3 py-2 text-sm font-bold text-white hover:text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                <ChevronLeft size={20} aria-hidden />
+                Shop by category
               </button>
-              <nav
-                ref={scroller}
-                aria-label="Product categories"
-                className="scrollbar-hide mask-fade-right flex flex-1 flex-row items-center justify-start divide-x divide-white overflow-x-auto scroll-smooth px-8"
-              >
-                {categories.map((category) => (
-                  <Link
-                    key={category.id}
-                    href={`/category/${category.slug}`}
-                    className="shrink-0 px-[1rem] text-[0.875rem] font-bold whitespace-nowrap text-white hover:text-secondary"
-                  >
-                    {category.name}
-                  </Link>
-                ))}
-              </nav>
-              <button
-                type="button"
-                aria-label="Scroll categories right"
-                onClick={() => scrollNav(1)}
-                className="absolute right-0 z-10 hidden h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/40 md:flex"
-              >
-                <ChevronRight size={20} aria-hidden />
-              </button>
+              {categoryMenuOpen ? (
+                <nav
+                  id="desktop-category-menu"
+                  aria-label="Product categories"
+                  className="absolute left-0 top-full z-40 grid max-h-[70vh] w-[min(60rem,90vw)] grid-cols-2 gap-5 overflow-y-auto rounded-b-md bg-white p-5 text-ink shadow-2xl lg:grid-cols-3"
+                >
+                  {categoryGroups.map((group) => {
+                    const directCategory = group.categories.length === 1 && group.categories[0].linkLabel === group.label;
+                    const childCategories = group.categories.filter(
+                      (category) => category.linkLabel.toLowerCase() !== group.label.toLowerCase(),
+                    );
+                    return (
+                      <section key={group.label} className="min-w-0">
+                        <Link
+                          href={group.href}
+                          onClick={() => setCategoryMenuOpen(false)}
+                          className="block rounded px-2 py-1 text-sm font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          {directCategory ? group.label : `Browse all ${group.label}`}
+                        </Link>
+                        {directCategory ? null : (
+                          <ul className="mt-1 space-y-1">
+                            {childCategories.map((category) => (
+                              <li key={category.id}>
+                                <Link
+                                  href={`/category/${category.slug}`}
+                                  onClick={() => setCategoryMenuOpen(false)}
+                                  className="block rounded px-2 py-1 text-sm text-ink hover:bg-page focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                                >
+                                  {category.linkLabel}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+                    );
+                  })}
+                </nav>
+              ) : null}
             </div>
             <Link href="/contact" className="shrink-0 text-[0.875rem] font-bold whitespace-nowrap text-secondary">
               Contact Us
@@ -328,7 +408,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
 
       <div className="block w-full bg-white lg:hidden">
         <div className="flex w-full flex-row items-center justify-between px-4 py-3 font-rubik">
-          <button type="button" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+          <button ref={mobileMenuTrigger} type="button" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
             <Menu size={28} strokeWidth={2} />
           </button>
           <Link href="/" className="flex items-center">
@@ -351,43 +431,84 @@ export function Header({ site, categories }: { site: Site; categories: Category[
       {menuOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
           <button className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
-          <div className="absolute top-0 left-0 flex h-full w-[min(20.5rem,88vw)] flex-col overflow-y-auto bg-white shadow-2xl">
+          <div ref={mobileMenuPanel} className="absolute top-0 left-0 flex h-full w-[min(20.5rem,88vw)] flex-col overflow-y-auto bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-line px-4 py-5">
               <p className="text-[1rem] font-bold">{site.name}</p>
-              <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+              <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 <X size={24} />
               </button>
             </div>
             <nav className="flex flex-col px-2 py-3" aria-label="Mobile">
-              <Link href="/account" className="flex items-center gap-3 border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink">
+              <Link href="/account" className="flex items-center gap-3 border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink focus-visible:outline-2 focus-visible:outline-accent">
                 <CircleUser size={20} aria-hidden /> Account
               </Link>
               {signedIn ? (
-                <button type="button" className="flex items-center gap-3 border-b border-line px-3 py-3 text-left text-[0.875rem] font-bold text-ink" onClick={() => void logout()}>
+                <button type="button" className="flex items-center gap-3 border-b border-line px-3 py-3 text-left text-[0.875rem] font-bold text-ink focus-visible:outline-2 focus-visible:outline-accent" onClick={() => void logout()}>
                   <LogOut size={20} aria-hidden /> Log out
                 </button>
               ) : null}
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/category/${category.slug}`}
-                  className="border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink"
-                >
-                  {category.name}
-                </Link>
-              ))}
-              <Link href="/contact" className="px-3 py-3 text-[0.875rem] font-bold text-secondary">
+              {categoryGroups.map((group) => {
+                const directCategory = group.categories.length === 1 && group.categories[0].linkLabel === group.label;
+                const childCategories = group.categories.filter(
+                  (category) => category.linkLabel.toLowerCase() !== group.label.toLowerCase(),
+                );
+                if (directCategory) {
+                  const category = group.categories[0];
+                  return (
+                    <Link
+                      key={category.id}
+                      href={`/category/${category.slug}`}
+                      className="border-b border-line px-3 py-3 text-[0.875rem] font-bold text-ink focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      {category.name}
+                    </Link>
+                  );
+                }
+                const expanded = expandedMobileGroups.includes(group.label);
+                const groupId = `mobile-category-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+                return (
+                  <section key={group.label} className="border-b border-line">
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      aria-controls={groupId}
+                      onClick={() => toggleMobileGroup(group.label)}
+                      className="flex w-full items-center justify-between px-3 py-3 text-left text-[0.875rem] font-bold text-ink focus-visible:outline-2 focus-visible:outline-accent"
+                    >
+                      {group.label}
+                      <span aria-hidden>{expanded ? "−" : "+"}</span>
+                    </button>
+                    {expanded ? (
+                      <div id={groupId} className="bg-page px-3 pb-2">
+                        <Link href={group.href} className="block py-2 text-sm font-semibold text-accent focus-visible:outline-2 focus-visible:outline-accent">
+                          Browse all {group.label}
+                        </Link>
+                        {childCategories.map((category) => (
+                          <Link
+                            key={category.id}
+                            href={`/category/${category.slug}`}
+                            className="block py-2 pl-3 text-sm text-ink focus-visible:outline-2 focus-visible:outline-accent"
+                          >
+                            {category.linkLabel}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+              <Link href="/contact" className="px-3 py-3 text-[0.875rem] font-bold text-secondary focus-visible:outline-2 focus-visible:outline-accent">
                 Contact Us
               </Link>
             </nav>
             <div className="mt-auto space-y-2 border-t border-line px-5 py-5">
               {exploreLinks.filter((link) => link.href !== "/account").map((link) => (
-                <Link key={link.href} href={link.href} className="block py-1 text-[0.875rem] text-ink">
+                <Link key={link.href} href={link.href} className="block rounded py-1 text-[0.875rem] text-ink focus-visible:outline-2 focus-visible:outline-accent">
                   {link.label}
                 </Link>
               ))}
               {site.phones.map((phone) => (
-                <a key={phone} href={`tel:${phone}`} className="block pt-2 text-[0.875rem] font-bold">
+                <a key={phone} href={`tel:${phone}`} className="block rounded pt-2 text-[0.875rem] font-bold focus-visible:outline-2 focus-visible:outline-accent">
                   Call: {phone}
                 </a>
               ))}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Rubik, Work_Sans } from "next/font/google";
 import { getSite } from "@/lib/api";
+import { siteOrigin } from "@/lib/site-url";
 import "./globals.css";
 
 const workSans = Work_Sans({
@@ -28,7 +29,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getSite();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = siteOrigin();
   return {
     metadataBase: new URL(siteUrl),
     title: {
@@ -41,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: site.seo.title,
       description: site.seo.description,
-      url: siteUrl,
+      url: "/",
       siteName: site.name,
       images: [{ url: site.logo, width: 300, height: 100, alt: `${site.name} logo` }],
       type: "website",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "@/components/blog-article";
 import { getPosts, getSite } from "@/lib/api";
+import { absoluteSiteUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,14 @@ export async function generateMetadata(): Promise<Metadata> {
     description: post?.title || `Stories and product notes from ${site.name}.`,
     alternates: { canonical: "/blog" },
     openGraph: {
+      title: post?.title || "Blog",
+      description: `Stories and product notes from ${site.name}.`,
+      url: absoluteSiteUrl("/blog"),
+      images: [site.cover],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
       title: post?.title || "Blog",
       description: `Stories and product notes from ${site.name}.`,
       images: [site.cover],
