@@ -1,5 +1,6 @@
 export const exploreLinks = [
   { href: "/products", label: "Products" },
+  { href: "/about", label: "About Us" },
   { href: "/reviews", label: "Reviews" },
   { href: "/offers", label: "Offers" },
   { href: "/blog", label: "Blog" },

@@ -139,6 +139,7 @@ export function AdminProductsPanel({
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [toast, setToast] = useState("");
   const [expandedColorPickers, setExpandedColorPickers] = useState<string[]>([]);
+  const [sameSpecs, setSameSpecs] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!toast) return;
@@ -257,10 +258,15 @@ export function AdminProductsPanel({
   async function saveVariants(product: Product) {
     setBusyId(product.id);
     setMessage("");
+    const variants = variantsOf(product);
     const response = await apiFetch(`/api/admin/products/${product.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ variants: variantsOf(product) }),
+      body: JSON.stringify({
+        variants: sameSpecs[product.id]
+          ? variants.map((variant) => ({ ...variant, specs: specsOf(product) }))
+          : variants,
+      }),
     });
     const payload = (await response.json().catch(() => null)) as { error?: string; variants?: ProductVariant[]; fields?: string[] } | null;
     setBusyId(null);
@@ -421,7 +427,34 @@ export function AdminProductsPanel({
                     <SpecSections specs={specsOf(product)} onChange={(next) => setSpecDrafts((state) => ({ ...state, [product.id]: next }))} />
                   </div>
                   <div className="variant-list">
-                    <p className="text-sm font-bold">Colors and storage</p>
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm font-bold">Colors and storage</p>
+                      <fieldset className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                        <legend className="sr-only">Specifications for color variants</legend>
+                        <span className="font-medium">Same specifications</span>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`same-specs-${product.id}`}
+                            value="yes"
+                            checked={sameSpecs[product.id] === true}
+                            onChange={() => setSameSpecs((current) => ({ ...current, [product.id]: true }))}
+                          />
+                          Yes
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`same-specs-${product.id}`}
+                            value="no"
+                            checked={sameSpecs[product.id] !== true}
+                            onChange={() => setSameSpecs((current) => ({ ...current, [product.id]: false }))}
+                          />
+                          No
+                        </label>
+                        <span className="text-xs text-muted">Off by default. When enabled, saving copies the product specifications to every color variant.</span>
+                      </fieldset>
+                    </div>
                     <div className="product-colors product-colors-lg">
                       {variantsOf(product).map((item) => (
                         <span key={item.id} className="color-swatch" style={{ background: item.hex || "#d1d5db" }} title={item.color || "Color"} />
