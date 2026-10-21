@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { CategoryCard } from "@/components/category-card";
 import { ProductCard } from "@/components/product-card";
 import { AccentLink } from "@/components/accent-button";
+import { HeroSlideshow } from "@/components/hero-slideshow";
 import { getCategories, getProducts, getSite, topCategories } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +18,11 @@ export default async function HomePage() {
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-start space-y-[2rem] px-4 py-8">
-      <section className="flex w-full flex-col items-center gap-8 rounded-md bg-white px-5 py-8 shadow-md lg:flex-row lg:items-center lg:justify-between lg:px-8">
-        <div className="flex w-full flex-col items-center space-y-5 lg:w-[52%] lg:items-start">
+      <section className="relative flex w-full flex-col items-center gap-8 overflow-hidden rounded-md bg-white px-5 py-8 shadow-md lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        {/* bg.png / bg1.png - desktop only, crossfading on the right side */}
+        <HeroSlideshow />
+
+        <div className="relative flex w-full flex-col items-center space-y-5 lg:w-[52%] lg:items-start">
           <h1 className="text-center text-[1.75rem] font-bold tracking-tight uppercase lg:text-left lg:text-4xl">
             {heroTitle}
           </h1>
@@ -29,16 +32,6 @@ export default async function HomePage() {
               {site.heroCta}
             </AccentLink>
           </div>
-        </div>
-        <div className="hidden h-80 w-[22rem] shrink-0 overflow-hidden rounded-md lg:block">
-          <Image
-            src={site.cover}
-            alt={site.name}
-            width={430}
-            height={320}
-            priority
-            className="h-full w-full object-cover object-center"
-          />
         </div>
       </section>
 
