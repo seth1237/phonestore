@@ -20,7 +20,7 @@ export async function generateMetadata({
     product.description ||
     `${product.name} from ${site.name}${product.category ? ` in ${product.category}` : ""}.`;
   return {
-    title: product.name,
+    title: `${product.name} Price in Kenya`,
     description,
     alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
@@ -55,13 +55,21 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     "@type": "Product",
     name: product.name,
     ...(product.description ? { description: product.description } : {}),
-    image: product.photos.map((photo) => photo.url),
+    image: (product.photos.map((photo) => photo.url).filter(Boolean).length
+      ? product.photos.map((photo) => photo.url)
+      : product.image
+        ? [product.image]
+        : undefined),
     category: product.category,
+    url: absoluteSiteUrl(`/products/${product.slug}`),
+    brand: product.category || site.name,
     offers: {
       "@type": "Offer",
+      url: absoluteSiteUrl(`/products/${product.slug}`),
       priceCurrency: "KES",
       price: product.price,
       availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: site.name },
     },
   };
 

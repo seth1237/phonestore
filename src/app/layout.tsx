@@ -39,10 +39,12 @@ export async function generateMetadata(): Promise<Metadata> {
     description: site.seo.description,
     keywords: site.seo.keywords,
     alternates: { canonical: "/" },
+    robots: { index: true, follow: true },
     openGraph: {
       title: site.seo.title,
       description: site.seo.description,
-      url: "/",
+      url: siteUrl,
+      locale: "en_KE",
       siteName: site.name,
       images: [{ url: site.logo, width: 300, height: 100, alt: `${site.name} logo` }],
       type: "website",

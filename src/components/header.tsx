@@ -68,7 +68,7 @@ function SearchField({
   return (
     <div
       ref={box}
-      className={`border-line relative flex flex-1 flex-row items-center justify-between rounded-md border px-2 py-1.5 ${
+      className={`border-line relative z-50 flex flex-1 flex-row items-center justify-between rounded-md border px-2 py-1.5 ${
         tone === "onAccent" ? "bg-white" : "bg-white"
       }`}
     >
@@ -79,7 +79,7 @@ function SearchField({
         id={id}
         type="search"
         value={query}
-        placeholder="Start typing to search (min. 3 letters)"
+        placeholder="Search products"
         onChange={(event) => {
           setQuery(event.target.value);
           setOpen(true);
@@ -110,21 +110,19 @@ function SearchField({
         <Search size={20} strokeWidth={2} aria-hidden />
       </button>
       {show ? (
-        <div className="absolute right-2 top-[11rem] z-40 grid max-h-[40vh] w-[95vw] grid-cols-2 divide-x divide-y divide-line overflow-y-auto rounded-b-md bg-white drop-shadow-2xl lg:right-0 lg:top-[3.5rem] lg:max-h-[40vh] lg:w-full lg:grid-cols-3">
+        <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-[min(70vh,28rem)] w-full overflow-y-auto rounded-md border border-line bg-white shadow-lg">
           {categories.length === 0 && products.length === 0 ? (
-            <p className="col-span-2 px-4 py-6 text-center text-sm text-muted lg:col-span-3">
-              No matching products
-            </p>
+            <p className="px-4 py-6 text-center text-sm text-muted">No matching products</p>
           ) : null}
           {categories.map((category) => (
             <Link
               key={`cat-${category.id}`}
               href={`/category/${category.slug}`}
               onClick={() => setOpen(false)}
-              className="flex cursor-pointer flex-row items-center justify-between space-x-2 bg-[#f8fafc] px-4 py-2 transition-colors hover:bg-gray-100"
+              className="flex items-center justify-between gap-3 border-b border-line px-3 py-3 hover:bg-page"
             >
-              <span className="text-[0.65rem] font-bold uppercase tracking-wide text-muted">Category</span>
-              <span className="text-right text-[0.75rem] font-semibold text-black">{category.name}</span>
+              <span className="text-sm font-semibold text-ink">{category.name}</span>
+              <span className="text-xs text-muted">Category</span>
             </Link>
           ))}
           {products.map((product) => (
@@ -132,16 +130,16 @@ function SearchField({
               key={product.id}
               href={`/products/${product.slug}`}
               onClick={() => setOpen(false)}
-              className="flex cursor-pointer flex-row items-start justify-between space-x-2 px-4 py-2 transition-colors hover:bg-gray-100"
+              className="flex items-center gap-3 border-b border-line px-3 py-3 last:border-b-0 hover:bg-page"
             >
-              <span className="relative h-[3rem] w-[3rem] shrink-0 overflow-hidden lg:h-[4.063rem] lg:w-[4.063rem]">
+              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-page">
                 {product.thumb ? (
-                  <Image src={product.thumb} alt="" fill sizes="65px" className="object-cover" />
+                  <Image src={product.thumb} alt="" fill sizes="48px" className="object-cover" />
                 ) : null}
               </span>
-              <span className="flex flex-col items-end justify-start space-y-[1rem]">
-                <span className="text-right text-[0.75rem] font-semibold text-black">{product.name}</span>
-                <span className="text-[1rem] font-bold text-accent">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-ink">{product.name}</span>
+                <span className="mt-1 block text-sm font-bold text-accent">
                   <Price amount={product.price} />
                 </span>
               </span>
@@ -423,7 +421,7 @@ export function Header({ site, categories }: { site: Site; categories: Category[
           </Link>
           <CartLink mobile />
         </div>
-        <div className="w-full border-b-[3px] border-secondary bg-accent px-4 py-4">
+        <div className="relative z-40 overflow-visible border-b-[3px] border-secondary bg-accent px-4 py-4">
           <SearchField id="mobile-search" tone="onAccent" />
         </div>
       </div>

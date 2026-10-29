@@ -146,6 +146,7 @@ async function ensureSchema(pool) {
     "ALTER TABLE orders ADD COLUMN mpesa_receipt VARCHAR(32) NOT NULL DEFAULT ''",
     "ALTER TABLE orders ADD COLUMN checkout_request_id VARCHAR(80) NOT NULL DEFAULT ''",
     "ALTER TABLE order_items MODIFY product_id VARCHAR(64) NOT NULL",
+    `UPDATE shop SET website = 'https://raimerchants.co.ke', seo_title = 'Phones, Accessories & Gadgets in Nairobi | Rai Merchants', seo_description = 'Buy phones, accessories and gadgets at Rai Merchants, Njoguini Building, Ronald Ngala and Mfangano Street, Nairobi. Call 0702119333 or 0717159863.', seo_keywords = 'phones Nairobi,phone shop Nairobi,Samsung Kenya,iPhone Kenya,Tecno Kenya,Infinix Kenya,Xiaomi Kenya,phone accessories Nairobi,chargers,earbuds,gadgets Nairobi,Rai Merchants' WHERE id = 1`,
   ];
   for (const statement of alterations) {
     try {

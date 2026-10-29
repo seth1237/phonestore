@@ -4,7 +4,13 @@ import { siteOrigin } from "@/lib/site-url";
 export default function robots(): MetadataRoute.Robots {
   const base = siteOrigin();
   return {
-    rules: { userAgent: "*", allow: "/" },
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: ["/admin", "/cart", "/checkout", "/account", "/api"],
+      },
+    ],
     sitemap: `${base}/sitemap.xml`,
   };
 }

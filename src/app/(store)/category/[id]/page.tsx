@@ -17,11 +17,11 @@ export async function generateMetadata({
   if (!category) return { title: "Category" };
   return {
     title: category.name,
-    description: `Shop ${category.name} at ${site.name} in Nairobi.`,
+    description: `Shop ${category.name} at ${site.name}, Nairobi CBD.`,
     alternates: { canonical: `/category/${category.slug}` },
     openGraph: {
       title: category.name,
-      description: `Shop ${category.name} at ${site.name} in Nairobi.`,
+      description: `Shop ${category.name} at ${site.name}, Nairobi CBD.`,
       url: absoluteSiteUrl(`/category/${category.slug}`),
       images: [{ url: category.image || site.logo, alt: category.name }],
       type: "website",
@@ -29,7 +29,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: category.name,
-      description: `Shop ${category.name} at ${site.name} in Nairobi.`,
+      description: `Shop ${category.name} at ${site.name}, Nairobi CBD.`,
       images: [category.image || site.logo],
     },
   };

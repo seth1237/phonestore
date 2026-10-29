@@ -3,7 +3,8 @@ import { AccountPanel } from "@/components/account-panel";
 
 export const metadata: Metadata = {
   title: "Account",
-  description: "Sign in to see what you have bought, what has been dispatched, and what has been delivered.",
+  description: "Sign in to your Rai Merchants account.",
+  robots: { index: false, follow: false },
   alternates: { canonical: "/account" },
 };
 

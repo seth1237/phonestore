@@ -1,4 +1,4 @@
-const PRODUCTION_ORIGIN = "https://rai.codewithseth.co.ke";
+const PRODUCTION_ORIGIN = "https://raimerchants.co.ke";
 
 export function siteOrigin() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();

@@ -118,7 +118,6 @@ export function AccountPanel() {
     return (
       <form className="mx-auto w-full max-w-md space-y-4 px-4 py-12" onSubmit={submit}>
         <h1 className="text-2xl font-bold">{mode === "login" ? "Sign in" : "Create an account"}</h1>
-        <p className="text-sm leading-6 text-muted">See what you have bought, what has been dispatched, and what has been delivered.</p>
         {mode === "register" ? (
           <>
             <label className="block text-sm font-semibold" htmlFor="account-name">Full name</label>

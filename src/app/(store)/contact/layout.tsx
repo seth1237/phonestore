@@ -7,7 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const site = await getSite();
   return {
     title: "Contact",
-    description: `Visit ${site.name} at ${site.address}, or call ${site.phone}.`,
+    description: `Visit ${site.name} at ${site.address}. Call ${site.phone}.`,
     alternates: { canonical: "/contact" },
   };
 }

@@ -84,7 +84,7 @@ async function buildApp() {
   }
 
   const app = express();
-  const allowedOrigins = String(process.env.WEB_ORIGIN || "http://127.0.0.1:3000,http://localhost:3000,https://phonestore-gilt.vercel.app")
+  const allowedOrigins = String(process.env.WEB_ORIGIN || "http://127.0.0.1:3000,http://localhost:3000,https://raimerchants.co.ke,https://www.raimerchants.co.ke,https://phonestore-gilt.vercel.app")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);

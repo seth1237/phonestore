@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [categories, products, posts] = await Promise.all([getCategories(), getProducts(), getPosts()]);
   const base = siteOrigin();
-  const staticRoutes = ["", "/products", "/reviews", "/offers", "/blog", "/contact", "/cart", "/account", "/checkout"].map((path) => ({
+  const staticRoutes = ["", "/products", "/reviews", "/offers", "/blog", "/about", "/contact"].map((path) => ({
     url: `${base}${path || "/"}`,
     changeFrequency: "weekly" as const,
     priority: path === "" ? 1 : 0.7,

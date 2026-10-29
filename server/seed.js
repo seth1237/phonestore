@@ -29,11 +29,11 @@ const catalog = {
     creditHref: "https://tappi.app",
     facebook: "",
     instagram: "",
-    website: "",
-    seoTitle: "Rai Merchants Limited — phones, accessories and gadgets in Nairobi",
+    website: "https://raimerchants.co.ke",
+    seoTitle: "Phones, Accessories & Gadgets in Nairobi | Rai Merchants",
     seoDescription:
-      "Shop phones, accessories, and gadgets at Njoguini Building, at the intersection of Ronald Ngala Street and Mfangano Street. Open Monday to Friday, 9am to 6pm. Call 0702119333 or 0717159863.",
-    keywords: "phones,accessories,gadgets,Nairobi,Ronald Ngala,Mfangano,Njoguini Building",
+      "Buy phones, accessories and gadgets at Rai Merchants, Njoguini Building, Ronald Ngala and Mfangano Street, Nairobi. Call 0702119333 or 0717159863.",
+    keywords: "phones Nairobi,phone shop Nairobi,Samsung Kenya,iPhone Kenya,Tecno Kenya,Infinix Kenya,Xiaomi Kenya,phone accessories Nairobi,chargers,earbuds,gadgets Nairobi,Rai Merchants",
   },
   phones: ["0702119333", "0717159863"],
   hours: [
