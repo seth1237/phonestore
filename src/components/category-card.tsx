@@ -22,7 +22,7 @@ export function CategoryCard({ category }: { category: Category }) {
   return (
     <Link
       href={`/category/${category.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-md border border-line bg-white transition duration-300 hover:-translate-y-1 hover:border-secondary hover:shadow-lg"
+      className="group glass flex h-full flex-col overflow-hidden rounded-xl border-white/50 transition duration-300 hover:-translate-y-1 hover:border-secondary/40 hover:shadow-lg"
     >
       <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#f3f4f6]">
         {current ? (
@@ -31,7 +31,7 @@ export function CategoryCard({ category }: { category: Category }) {
             src={current}
             alt={category.name}
             fill
-            sizes="(min-width: 1024px) 30vw, 50vw"
+            sizes="(min-width: 640px) 208px, 42vw"
             className="object-cover transition duration-300 group-hover:scale-105"
           />
         ) : null}

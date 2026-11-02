@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import {
   CircleUser,
@@ -68,9 +69,7 @@ function SearchField({
   return (
     <div
       ref={box}
-      className={`border-line relative z-50 flex flex-1 flex-row items-center justify-between rounded-md border px-2 py-1.5 ${
-        tone === "onAccent" ? "bg-white" : "bg-white"
-      }`}
+      className="relative z-50 flex flex-1 flex-row items-center justify-between rounded-xl border border-white/60 bg-white/75 px-2 py-1.5 shadow-sm backdrop-blur-md transition-shadow duration-300 focus-within:shadow-md"
     >
       <label htmlFor={id} className="sr-only">
         Search products
@@ -105,12 +104,12 @@ function SearchField({
             setOpen(true);
           }
         }}
-        className="flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-md bg-secondary text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-lg bg-secondary text-white transition duration-200 hover:brightness-95 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <Search size={20} strokeWidth={2} aria-hidden />
       </button>
       {show ? (
-        <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-[min(70vh,28rem)] w-full overflow-y-auto rounded-md border border-line bg-white shadow-lg">
+        <div className="glass-panel animate-fade-in absolute inset-x-0 top-full z-50 mt-1 max-h-[min(70vh,28rem)] w-full overflow-y-auto rounded-xl">
           {categories.length === 0 && products.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted">No matching products</p>
           ) : null}
@@ -119,7 +118,7 @@ function SearchField({
               key={`cat-${category.id}`}
               href={`/category/${category.slug}`}
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between gap-3 border-b border-line px-3 py-3 hover:bg-page"
+              className="flex items-center justify-between gap-3 border-b border-white/40 px-3 py-3 transition-colors duration-200 hover:bg-white/60"
             >
               <span className="text-sm font-semibold text-ink">{category.name}</span>
               <span className="text-xs text-muted">Category</span>
@@ -130,7 +129,7 @@ function SearchField({
               key={product.id}
               href={`/products/${product.slug}`}
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 border-b border-line px-3 py-3 last:border-b-0 hover:bg-page"
+              className="flex items-center gap-3 border-b border-white/40 px-3 py-3 last:border-b-0 transition-colors duration-200 hover:bg-white/60"
             >
               <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded bg-page">
                 {product.thumb ? (
@@ -148,7 +147,7 @@ function SearchField({
         </div>
       ) : null}
       {open && query.trim().length > 0 && query.trim().length < 3 ? (
-        <p className="absolute right-0 top-full z-40 mt-1 rounded-md bg-white px-3 py-2 text-xs text-muted shadow-md">
+        <p className="glass-panel animate-fade-in absolute right-0 top-full z-40 mt-1 rounded-xl px-3 py-2 text-xs text-muted">
           Keep typing — search starts at 3 letters.
         </p>
       ) : null}
@@ -164,8 +163,8 @@ function CartLink({ mobile = false }: { mobile?: boolean }) {
       aria-label={`Cart, ${count} ${count === 1 ? "item" : "items"}`}
       className={
         mobile
-          ? "relative flex h-[3.13rem] w-[3.13rem] items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          : "relative flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-accent px-3 text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          ? "relative flex h-[3.13rem] w-[3.13rem] items-center justify-center rounded-full transition duration-200 hover:bg-white/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          : "relative flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-accent/90 px-3 text-white shadow-sm backdrop-blur-sm transition duration-200 hover:scale-105 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       }
     >
       <span
@@ -187,7 +186,7 @@ function AccountIcon() {
   return (
     <Link
       href="/account"
-      className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-full px-2 text-accent transition duration-200 hover:bg-white/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <CircleUser size={26} strokeWidth={2} aria-hidden />
       <span>Account</span>
@@ -196,14 +195,14 @@ function AccountIcon() {
 }
 
 export function Header({ site, categories }: { site: Site; categories: Category[] }) {
-  const categoryMenu = useRef<HTMLDivElement>(null);
   const mobileMenuPanel = useRef<HTMLDivElement>(null);
   const mobileMenuTrigger = useRef<HTMLButtonElement>(null);
   const mobileMenuWasOpen = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [expandedMobileGroups, setExpandedMobileGroups] = useState<string[]>([]);
   const [signedIn, setSignedIn] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [menuReady, setMenuReady] = useState(false);
   const pathname = usePathname();
   const categoryGroups = groupCategories(categories);
 
@@ -240,24 +239,20 @@ export function Header({ site, categories }: { site: Site; categories: Category[
 
   useEffect(() => {
     setMenuOpen(false);
-    setCategoryMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
-    if (!categoryMenuOpen) return;
-    function onPointer(event: MouseEvent) {
-      if (!categoryMenu.current?.contains(event.target as Node)) setCategoryMenuOpen(false);
+    function onScroll() {
+      setScrolled(window.scrollY > 8);
     }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setCategoryMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [categoryMenuOpen]);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    setMenuReady(true);
+  }, []);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -310,25 +305,36 @@ export function Header({ site, categories }: { site: Site; categories: Category[
   }
 
   return (
-    <header className="w-full">
+    <header
+      className={`sticky top-0 z-[80] w-full bg-white/80 transition-[box-shadow,background-color] duration-300 ${
+        scrolled ? "shadow-lg shadow-accent/10" : ""
+      }`}
+    >
       <div className="hidden w-full lg:block">
-        <div className="flex h-10 w-full items-center justify-center bg-accent px-4">
-          <div className="flex w-full max-w-screen-xl flex-row items-center justify-between">
-            <p className="text-[0.875rem] font-bold text-white">
-              Call:{" "}
-              {site.phones.map((phone, index) => (
-                <span key={phone}>
-                  {index > 0 ? " / " : null}
-                  <a href={`tel:${phone}`} className="hover:underline">
-                    {phone}
-                  </a>
-                </span>
-              ))}
-            </p>
-            <p className="text-[0.875rem] font-bold text-white">{site.tagline}</p>
+        <div
+          className={`glass-accent overflow-hidden transition-all duration-300 ${
+            scrolled ? "max-h-0 opacity-0" : "max-h-10 opacity-100"
+          }`}
+        >
+          <div className="flex h-10 w-full items-center justify-center px-4">
+            <div className="flex w-full max-w-screen-xl flex-row items-center justify-between">
+              <p className="text-[0.875rem] font-bold text-white">
+                Call:{" "}
+                {site.phones.map((phone, index) => (
+                  <span key={phone}>
+                    {index > 0 ? " / " : null}
+                    <a href={`tel:${phone}`} className="hover:underline">
+                      {phone}
+                    </a>
+                  </span>
+                ))}
+              </p>
+              <p className="text-[0.875rem] font-bold text-white">{site.tagline}</p>
+            </div>
           </div>
         </div>
-        <div className="mx-auto flex w-full max-w-screen-xl flex-row items-center justify-between gap-8 bg-white px-4 py-3">
+        <div className="glass-nav w-full">
+        <div className="mx-auto flex w-full max-w-screen-xl flex-row items-center justify-between gap-8 px-4 py-3">
           <Link href="/" className="flex shrink-0 flex-row items-center">
             <Image
               src={site.logo}
@@ -344,67 +350,32 @@ export function Header({ site, categories }: { site: Site; categories: Category[
           <AccountIcon />
           <CartLink />
         </div>
-        <div className="relative flex w-full items-center justify-center border-b-[3px] border-secondary bg-accent px-4">
-          <div className="flex w-full max-w-screen-xl flex-row items-center justify-between gap-8 py-3">
-            <div ref={categoryMenu} className="relative">
-              <button
-                type="button"
-                aria-expanded={categoryMenuOpen}
-                aria-controls="desktop-category-menu"
-                onClick={() => setCategoryMenuOpen((open) => !open)}
-                className="rounded px-3 py-2 text-sm font-bold text-white hover:text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        </div>
+        <div className="glass-accent relative border-b-[3px] border-secondary/80">
+          <nav
+            aria-label="Product categories"
+            className="mx-auto flex w-full max-w-screen-xl flex-row items-center gap-1 overflow-x-auto px-4 py-1 scrollbar-hide"
+          >
+            {categoryGroups.map((group) => (
+              <Link
+                key={group.label}
+                href={group.href}
+                className="shrink-0 whitespace-nowrap rounded px-3 py-2.5 text-[0.8125rem] font-semibold text-white transition-colors duration-200 hover:text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                Shop by category
-              </button>
-              {categoryMenuOpen ? (
-                <nav
-                  id="desktop-category-menu"
-                  aria-label="Product categories"
-                  className="absolute left-0 top-full z-40 grid max-h-[70vh] w-[min(60rem,90vw)] grid-cols-2 gap-5 overflow-y-auto rounded-b-md bg-white p-5 text-ink shadow-2xl lg:grid-cols-3"
-                >
-                  {categoryGroups.map((group) => {
-                    const directCategory = group.categories.length === 1 && group.categories[0].linkLabel === group.label;
-                    const childCategories = group.categories.filter(
-                      (category) => category.linkLabel.toLowerCase() !== group.label.toLowerCase(),
-                    );
-                    return (
-                      <section key={group.label} className="min-w-0">
-                        <Link
-                          href={group.href}
-                          onClick={() => setCategoryMenuOpen(false)}
-                          className="block rounded px-2 py-1 text-sm font-bold text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        >
-                          {directCategory ? group.label : `Browse all ${group.label}`}
-                        </Link>
-                        {directCategory ? null : (
-                          <ul className="mt-1 space-y-1">
-                            {childCategories.map((category) => (
-                              <li key={category.id}>
-                                <Link
-                                  href={`/category/${category.slug}`}
-                                  onClick={() => setCategoryMenuOpen(false)}
-                                  className="block rounded px-2 py-1 text-sm text-ink hover:bg-page focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                                >
-                                  {category.linkLabel}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </section>
-                    );
-                  })}
-                </nav>
-              ) : null}
-            </div>
-            <Link href="/contact" className="shrink-0 text-[0.875rem] font-bold whitespace-nowrap text-secondary">
+                {group.label}
+              </Link>
+            ))}
+            <Link
+              href="/contact"
+              className="ml-auto shrink-0 whitespace-nowrap rounded px-3 py-2.5 text-[0.8125rem] font-bold text-secondary transition-opacity duration-200 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
               Contact Us
             </Link>
-          </div>
+          </nav>
         </div>
       </div>
 
-      <div className="block w-full bg-white lg:hidden">
+      <div className="glass-nav block w-full lg:hidden">
         <div className="flex w-full flex-row items-center justify-between px-4 py-3 font-rubik">
           <button ref={mobileMenuTrigger} type="button" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
             <Menu size={28} strokeWidth={2} />
@@ -421,15 +392,36 @@ export function Header({ site, categories }: { site: Site; categories: Category[
           </Link>
           <CartLink mobile />
         </div>
-        <div className="relative z-40 overflow-visible border-b-[3px] border-secondary bg-accent px-4 py-4">
+        <div className="glass-accent relative overflow-visible border-b-[3px] border-secondary/80 px-4 py-4">
           <SearchField id="mobile-search" tone="onAccent" />
         </div>
       </div>
 
-      {menuOpen ? (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
-          <div ref={mobileMenuPanel} className="absolute top-0 left-0 flex h-full w-[min(20.5rem,88vw)] flex-col overflow-y-auto bg-white shadow-2xl">
+      {menuReady
+        ? createPortal(
+            <div
+              className={`fixed inset-0 z-[9999] lg:hidden ${menuOpen ? "pointer-events-auto" : "pointer-events-none"}`}
+              style={{ zIndex: 9999 }}
+              role="dialog"
+              aria-modal={menuOpen}
+              aria-label="Menu"
+              aria-hidden={!menuOpen}
+              inert={!menuOpen || undefined}
+            >
+          <button
+            className={`absolute inset-0 bg-black/35 backdrop-blur-sm transition-opacity duration-300 ${
+              menuOpen ? "opacity-100" : "opacity-0"
+            }`}
+            aria-label="Close menu"
+            tabIndex={menuOpen ? 0 : -1}
+            onClick={() => setMenuOpen(false)}
+          />
+          <div
+            ref={mobileMenuPanel}
+            className={`absolute top-0 left-0 flex h-dvh w-[min(20.5rem,88vw)] flex-col overflow-y-auto bg-white shadow-2xl transition-transform duration-300 ease-out ${
+              menuOpen ? "translate-x-0" : "-translate-x-full"
+            }`}
+          >
             <div className="flex items-center justify-between border-b border-line px-4 py-5">
               <p className="text-[1rem] font-bold">{site.name}</p>
               <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
@@ -512,8 +504,10 @@ export function Header({ site, categories }: { site: Site; categories: Category[
               ))}
             </div>
           </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
     </header>
   );
 }

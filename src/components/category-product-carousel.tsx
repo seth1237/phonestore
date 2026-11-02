@@ -49,7 +49,7 @@ export function CategoryProductCarousel({
   if (!products.length) return null;
 
   return (
-    <section className="w-full rounded-md bg-white px-4 py-8 shadow-md sm:px-6" aria-labelledby="same-category-title">
+    <section className="glass-panel w-full rounded-xl px-4 py-8 sm:px-6" aria-labelledby="same-category-title">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 id="same-category-title" className="text-xl font-bold sm:text-2xl">
@@ -62,7 +62,7 @@ export function CategoryProductCarousel({
             type="button"
             aria-label="Scroll to previous products"
             onClick={() => scroll(-1)}
-            className="rounded-full border border-line p-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="rounded-full border border-white/60 bg-white/50 p-2 text-accent backdrop-blur-sm transition duration-200 hover:bg-white hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <ChevronLeft size={20} aria-hidden />
           </button>
@@ -70,7 +70,7 @@ export function CategoryProductCarousel({
             type="button"
             aria-label="Scroll to more products"
             onClick={() => scroll(1)}
-            className="rounded-full border border-line p-2 text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="rounded-full border border-white/60 bg-white/50 p-2 text-accent backdrop-blur-sm transition duration-200 hover:bg-white hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             <ChevronRight size={20} aria-hidden />
           </button>

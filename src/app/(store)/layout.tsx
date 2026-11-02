@@ -49,10 +49,10 @@ export default async function StoreLayout({ children }: Readonly<{ children: Rea
 
   return (
     <CartProvider>
-      <div className="relative flex min-h-screen w-full flex-col justify-between overflow-x-hidden bg-page text-ink">
+      <div className="relative flex min-h-screen w-full flex-col justify-between bg-page text-ink">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <Header site={site} categories={categories} />
-        <div className="mx-auto min-h-[80vh] w-full max-w-screen-xl flex-1">{children}</div>
+        <div className="animate-fade-up mx-auto min-h-[80vh] w-full max-w-screen-xl flex-1">{children}</div>
         <Footer site={site} categories={categories} />
         <CookieBanner />
       </div>

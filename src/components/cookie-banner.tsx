@@ -28,7 +28,7 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 w-[min(36rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-md bg-white px-5 py-4 text-left shadow-lg">
+    <div className="glass-panel animate-fade-up fixed bottom-4 left-1/2 z-[70] w-[min(36rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl px-5 py-4 text-left">
       <div className="flex items-center gap-2">
         <Cookie size={16} aria-hidden />
         <p className="text-sm font-bold text-ink">We use analytics cookies</p>

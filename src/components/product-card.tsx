@@ -22,7 +22,7 @@ export function ProductCard({
   return (
     <Link
       href={`/products/${product.slug}`}
-      className={`border-line relative flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-md border bg-white shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md ${
+      className={`group relative flex cursor-pointer flex-col items-start justify-start overflow-hidden rounded-xl border border-white/50 bg-white/80 shadow-sm backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:shadow-lg ${
         variant === "catalog"
           ? "w-full"
           : "w-[9.5rem] flex-grow lg:w-[11.48rem] lg:flex-grow-0"
@@ -37,7 +37,7 @@ export function ProductCard({
           event.stopPropagation();
           if (inStock) add(defaultCartLineId(product), 1);
         }}
-        className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-secondary p-1 text-white transition-colors hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+        className="absolute right-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-secondary/90 p-1 text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <ShoppingCart size={20} strokeWidth={2} aria-hidden />
       </button>
@@ -50,7 +50,7 @@ export function ProductCard({
             alt={product.name}
             fill
             sizes={variant === "catalog" ? "(min-width: 1024px) 33vw, 50vw" : "(min-width: 1024px) 184px, 44vw"}
-            className="object-cover object-center"
+            className="object-cover object-center transition duration-500 group-hover:scale-105"
           />
         ) : null}
       </div>
